@@ -50,7 +50,11 @@ async function connectTikTok(username) {
   if (wait > 0) return status(false, `Please wait ${Math.ceil(wait / 1000)} s before trying again (avoids the rate limit).`);
   lastAttempt = Date.now(); connecting = true;
   if (!lib) lib = await import('tiktok-live-connector');
-  const { TikTokLiveConnection, WebcastEvent, ControlEvent } = lib;
+  const L = lib.TikTokLiveConnection ? lib : (lib.default || lib);
+  const TikTokLiveConnection = L.TikTokLiveConnection || L.WebcastPushConnection;
+  const WE = L.WebcastEvent || {}, CE = L.ControlEvent || {};
+  const ev = { gift: WE.GIFT || 'gift', like: WE.LIKE || 'like', follow: WE.FOLLOW || 'follow', share: WE.SHARE || 'share', chat: WE.CHAT || 'chat', end: WE.STREAM_END || 'streamEnd', disc: CE.DISCONNECTED || 'disconnected', err: CE.ERROR || 'error' };
+  console.log('Event names:', JSON.stringify(ev));
   if (tiktok) { try { tiktok.disconnect(); } catch (e) {} tiktok = null; }
 
   status(false, `Connecting to @${username}… (you must be LIVE right now)`);
@@ -68,7 +72,7 @@ async function connectTikTok(username) {
     return status(false, 'Could not connect: ' + (err && err.message ? err.message : err));
   }
 
-  conn.on(WebcastEvent.GIFT, d => {
+  conn.on(ev.gift, d => {
     const giftType = d.giftDetails?.giftType ?? d.giftType;
     // Streak gifts (like Rose) fire many times; only count the final one.
     if (giftType === 1 && !d.repeatEnd) return;
@@ -78,11 +82,13 @@ async function connectTikTok(username) {
     if (img && !giftImg[giftName]) { giftImg[giftName] = img; giftList.push({ name: giftName, coins, img }); broadcast({ type: 'giftlist', gifts: giftList }); }
     broadcast({ type: 'gift', ...who(d), giftName, giftId: d.giftId, repeatCount: d.repeatCount || 1, diamondCount: coins, img });
   });
-  conn.on(WebcastEvent.LIKE, d => broadcast({ type: 'like', ...who(d), likeCount: d.likeCount || 1 }));
-  conn.on(WebcastEvent.FOLLOW, d => broadcast({ type: 'follow', ...who(d) }));
-  conn.on(WebcastEvent.SHARE, d => broadcast({ type: 'share', ...who(d) }));
-  conn.on(WebcastEvent.STREAM_END, () => { tiktok = null; tiktokUser = ''; status(false, 'Your LIVE ended.'); });
-  conn.on(ControlEvent.DISCONNECTED, () => { if (tiktok === conn) { tiktok = null; tiktokUser = ''; } status(false, 'Disconnected from TikTok. Tap Connect LIVE again.'); });
+  conn.on(ev.like, d => broadcast({ type: 'like', ...who(d), likeCount: d.likeCount || 1 }));
+  conn.on(ev.follow, d => broadcast({ type: 'follow', ...who(d) }));
+  conn.on(ev.share, d => broadcast({ type: 'share', ...who(d) }));
+  conn.on(ev.chat, d => broadcast({ type: 'chat', ...who(d), comment: String(d.comment || '').slice(0, 80) }));
+  conn.on(ev.err, e => console.log('TikTok error:', e && (e.message || e.info || e)));
+  conn.on(ev.end, () => { tiktok = null; tiktokUser = ''; status(false, 'Your LIVE ended.'); });
+  conn.on(ev.disc, () => { if (tiktok === conn) { tiktok = null; tiktokUser = ''; } status(false, 'Disconnected from TikTok. Tap Connect LIVE again.'); });
 }
 
 wss.on('connection', ws => {
