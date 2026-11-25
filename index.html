@@ -40,7 +40,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .vsbar{height:16px;border-radius:8px;background:linear-gradient(90deg,#7a0c1c,#e0243e);overflow:hidden;position:relative;border:1px solid #ffffff35}
 .vsbar>div{height:100%;width:50%;background:linear-gradient(90deg,#1d6fd6,#5cb8ff);transition:width .5s;box-shadow:2px 0 0 #fff}
 .vsbar em{position:absolute;inset:0;display:grid;place-items:center;font:400 10.5px Bungee,sans-serif;font-style:normal;text-shadow:0 1px 2px #000}
-#tap{position:absolute;left:10px;top:50%;width:112px;background:linear-gradient(135deg,#ff3b5cee,#ff7ab0d0);border-radius:14px;padding:6px 10px 7px;display:grid;gap:3px;pointer-events:none;box-shadow:0 4px 0 #7a1022;animation:tapP 1s ease-in-out infinite}
+#tap{position:absolute;left:10px;top:50%;width:112px;display:none!important;background:linear-gradient(135deg,#ff3b5cee,#ff7ab0d0);border-radius:14px;padding:6px 10px 7px;display:grid;gap:3px;pointer-events:none;box-shadow:0 4px 0 #7a1022;animation:tapP 1s ease-in-out infinite}
+#tap.on{display:grid!important}
 #tap b{font:400 17px Bungee,sans-serif;line-height:1}
 #tap span{font-size:11.5px;font-weight:800;line-height:1.2}
 #tap small{font-size:11px;font-weight:800}
@@ -86,7 +87,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #ticker .empty{font-size:12px;font-weight:700;opacity:.85}
 #legend div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #legend b{color:var(--rose)}
-#banner{position:absolute;left:0;right:0;top:38%;text-align:center;font-family:Bungee,sans-serif;font-size:clamp(28px,8vw,50px);line-height:1.05;text-shadow:0 4px 0 #000,0 0 30px #000;pointer-events:none;opacity:0;transition:opacity .3s,transform .3s;padding:0 16px;text-wrap:balance;transform:scale(.9)}
+#banner{position:absolute;left:0;right:0;top:38%;text-align:center;font-family:Bungee,sans-serif;font-size:clamp(24px,7vw,44px);line-height:1.05;text-shadow:0 4px 0 #000,0 0 30px #000;pointer-events:none;opacity:0;transition:opacity .3s,transform .3s;padding:0 88px 0 12px;text-wrap:balance;transform:scale(.9)}
 #banner.on{opacity:1;transform:scale(1)}
 #banner small{display:block;font:800 16px Rubik,sans-serif;margin-top:8px}
 #streak{position:absolute;left:0;right:0;top:26%;text-align:center;font:400 clamp(22px,6vw,34px) Bungee,sans-serif;color:var(--gold);text-shadow:0 3px 0 #000;opacity:0;transition:opacity .25s;pointer-events:none}
@@ -133,7 +134,7 @@ input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;border:1px s
       <div id="top"><h3>Top heroes</h3><ol id="topl"><li>Send a Rose!</li></ol></div>
     </div>
     <div id="ticker"><b>GIFTS</b><span class="empty">Send a gift — your @name shows here</span></div>
-    <div id="legend"><b>Follow</b> = 3 fighters · <b>Share</b> = wall +10</div>
+    <div id="legend"><b>Comment</b> = 1 fighter · <b>Follow</b> = 3 fighters · <b>Share</b> = wall +10</div>
   </div>
   <aside id="gifts" aria-label="Gift menu">
     <div class="gift " data-min="1"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 22c-1 6 1 11 0 16" stroke="#3fa34d" stroke-width="2.6" fill="none"/><path d="M20 30c-6-1-9-5-9-5 5 0 8 2 9 5z" fill="#3fa34d"/><circle cx="20" cy="14" r="9.5" fill="#d81b3a"/><path d="M13 13c3-6 11-6 14 0-3 4-11 4-14 0z" fill="#ff5a75"/><path d="M16.5 14c2-3 5-3 7 0" stroke="#8f0d24" stroke-width="1.6" fill="none"/></svg><b>Rose</b><span>2 fighters</span></div>
@@ -156,6 +157,7 @@ input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;border:1px s
       <button class="g" data-g="Money Gun,500,1">500 coins</button>
       <button class="y" data-g="Galaxy,1000,1">1000 coins</button>
       <button class="p" data-g="Lion,29999,1">Lion (NUKE)</button>
+      <button id="tchat">Comment</button>
       <button id="tlike">+100 taps</button>
       <button id="tfollow">Follow</button>
       <button id="tshare">Share</button>
@@ -253,8 +255,8 @@ const BOSSES=['THE BUTCHER','ROTFATHER','SKULLMAW','HIVE QUEEN','THE ABOMINATION
 const NEWZ={2:'CRAWLERS — fast and low.',3:'SPRINTERS — they run now.',5:'BOMBERS — they explode on your army!',6:'BRUTES — need heavy weapons.',7:'SPITTERS — acid from range.',9:'SCREAMERS — they make the horde faster.',12:'ELITE infected — red eyes, double health.'};
 const L={
   intro:['Sector {L} is falling. Hold that wall at all costs!','Scouts count {N} infected heading our way. Lock and load!','Survivors are behind that wall. If it drops, they are done.','Ammo is low, morale is lower. We need reinforcements, people!','Wave {L} incoming. Every rose is two more fighters on the line.'],
-  danger:['Wall at {P} percent! We need backup NOW! Send roses!','TAP THE SCREEN! Every tap sends fighters! The wall is breaking!','They are breaking through! Any gift sends fighters!','Wall is cracking! Somebody call in a tank!'],
-  idle:['Tap tap tap! Every 10 taps sends a fighter to the wall!','Everyone tap the screen! We need bodies on the line!','Quiet on the line… too quiet. Send backup before the next push!','Fighters are tired. One rose sends two fresh soldiers.','Command here. Who is calling in the next airstrike?','We are holding… barely. Gifts keep this squad alive!'],
+  danger:['Wall at {P} percent! We need backup NOW! Send roses!','Type in chat! Every comment sends a fighter! The wall is breaking!','They are breaking through! Any gift sends fighters!','Wall is cracking! Somebody call in a tank!'],
+  idle:['Type anything in chat — every comment sends a fighter!','Say hi in the chat and your fighter joins the battle with your name!','Everyone comment! We need bodies on the line!','Quiet on the line… too quiet. Send backup before the next push!','Fighters are tired. One comment sends a fresh soldier, one rose sends two.','Command here. Who is calling in the next airstrike?','We are holding… barely. Gifts keep this squad alive!'],
   gift:['{U} sent backup! Let\'s go!','Reinforcements from {U}! Move, move, move!','{U} is keeping us alive!'],
   tank:['{U} rolled in a TANK! Huge!','Armor on the field, thanks to {U}!'],
   air:['Airstrike inbound from {U}! Get down!','{U} called the jets! Danger close!'],
@@ -344,7 +346,7 @@ function zboom(z,full){if(z.exploded)return;z.exploded=1;const m=zStatsMult();
   fx.push({k:'boom',x:z.x,y:z.y-10,t:0,life:.5,r:60});shake=Math.min(16,shake+5);SFX.cannon();bx.fillStyle='#00000055';bx.beginPath();bx.arc(z.x,z.y,26,0,7);bx.fill();
   if(!z.dead)kill(z)}
 function spawnHuman(kind,name){const T=HT[kind];humans.push({life:T.life||0,maxLife:T.life||0,kind,x:rnd(50,W-50),y:BASEY+rnd(20,60),hp:T.hp,max:T.hp,r:T.r,cd:rnd(0,.3),t:rnd(0,9),dead:0,name,hx:rnd(60,W-60),hy:BASEY-rnd(50,170),aim:-Math.PI/2})}
-function enqueue(kind,n,name){for(let i=0;i<n;i++)queue.push({kind,name:i===0?name:null});if(queue.length>500)queue.length=500}
+function enqueue(kind,n,name,lab=1){for(let i=0;i<n;i++)queue.push({kind,name:i<lab?name:null});if(queue.length>500)queue.length=500}
 function hypeMult(){return 1+Math.min(8,Math.floor(hype/3))*.25}
 
 function onGift(g){
@@ -353,27 +355,45 @@ function onGift(g){
   hype+=1+Math.floor(coins/100);hypeT=10;lastGift=clock;
   const m=hypeMult(),n=x=>Math.max(1,Math.round(x*m));
   let msg,line='gift';
-  if(coins>=5000){nuke();enqueue('mech',n(1+Math.floor(coins/15000)),who);enqueue('tank',n(3),null);msg='NUKE + mech + tanks';line='nuke'}
-  else if(coins>=1000){airstrike();enqueue('mech',n(Math.min(3,Math.floor(coins/1000))),who);enqueue('tank',1,null);msg='AIRSTRIKE + mech';line='air'}
-  else if(coins>=300){const t=n(Math.min(6,Math.floor(coins/300)));enqueue('tank',t,who);enqueue('rifle',n(Math.floor((coins%300)/30)),null);msg=t+' TANK'+(t>1?'S':'');line='tank'}
-  else if(coins>=100){const f=n(Math.min(8,Math.floor(coins/100)*2));enqueue('flamer',f,who);enqueue('grenadier',n(Math.floor(coins/100)),null);msg=f+' flamethrowers + grenadiers'}
-  else if(coins>=30){const r=n(Math.min(15,Math.floor(coins/10)));enqueue('rifle',r,who);enqueue('shotgun',n(Math.floor(coins/30)),null);msg=r+' rifles + shotgun'}
-  else if(coins>=10){const p=n(Math.min(20,Math.ceil(coins/2)));enqueue('pistol',p,who);msg=p+' pistols'}
-  else{const r=n(Math.min(30,coins*2));enqueue('runner',r,who);msg=r+' fighters'}
+  if(coins>=5000){nuke();enqueue('mech',n(1+Math.floor(coins/15000)),who,99);enqueue('tank',n(3),who,99);msg='NUKE + mech + tanks';line='nuke'}
+  else if(coins>=1000){airstrike();enqueue('mech',n(Math.min(3,Math.floor(coins/1000))),who,99);enqueue('tank',1,who,99);msg='AIRSTRIKE + mech';line='air'}
+  else if(coins>=300){const t=n(Math.min(6,Math.floor(coins/300)));enqueue('tank',t,who,99);enqueue('rifle',n(Math.floor((coins%300)/30)),null);msg=t+' TANK'+(t>1?'S':'');line='tank'}
+  else if(coins>=100){const f=n(Math.min(8,Math.floor(coins/100)*2));enqueue('flamer',f,who,3);enqueue('grenadier',n(Math.floor(coins/100)),null);msg=f+' flamethrowers + grenadiers'}
+  else if(coins>=30){const r=n(Math.min(15,Math.floor(coins/10)));enqueue('rifle',r,who,3);enqueue('shotgun',n(Math.floor(coins/30)),null);msg=r+' rifles + shotgun'}
+  else if(coins>=10){const p=n(Math.min(20,Math.ceil(coins/2)));enqueue('pistol',p,who,3);msg=p+' pistols'}
+  else{const r=n(Math.min(30,coins*2));enqueue('runner',r,who,2);msg=r+' fighters'}
   if(coins>=300&&phase==='play'){const extra=Math.min(60,Math.floor(coins/15));zLeft+=extra;setTimeout(()=>radio(fill(pick(L.horde),{N:extra}),{speak:true,urgent:true,prio:3}),4500)}
   addGifter(who,coins);SFX.spawn();
   {const tiles=[...document.querySelectorAll('.gift')];let t=null;for(const el of tiles)if(coins>=+el.dataset.min)t=el;if(t){t.classList.remove('hit');void t.offsetWidth;t.classList.add('hit')}}
   ticker(who,g,msg);
   toast(`${esc(who)} sent ${g.repeatCount>1?g.repeatCount+'× ':''}${esc(g.giftName||'gift')} → <em>${msg}</em>${m>1?' <em>(HYPE x'+m+')</em>':''}`);
-  radio(fill(pick(L[line]),{U:who}),{speak:line!=='gift'||coins>=30,prio:line==='gift'?1:3});
+  praise(who,coins,msg);
+}
+const spoken=w=>String(w).replace(/^@/,'').replace(/[_.]+/g,' ').replace(/\d{3,}/g,'').trim()||'friend';
+const PRAISE=[
+  [5000,'LEGEND OF THE APOCALYPSE',['{U} just saved the whole city! Legend of the apocalypse! Everyone, show some love for {U}!']],
+  [1000,'SUPREME COMMANDER',['Supreme commander {U}! The whole army salutes you!','{U}, you are unstoppable! Supreme commander on the field!']],
+  [300,'TANK COMMANDER',['{U} rolled in heavy armor! Tank commander {U}, thank you!','Huge respect {U}! That tank changes everything!']],
+  [100,'HERO OF THE WALL',['{U} is a true hero! Flamethrowers burning, thank you {U}!','Hero of the wall: {U}! Thank you!']],
+  [30,'SHARPSHOOTER',['{U}, you legend! Rifles up, thank you!','Nice one {U}! Sharpshooters on the line!']],
+  [1,'',['Thank you {U}! Fighters incoming!','{U} sent backup! Let\'s go!','Thanks {U}, you keep us alive!']]
+];
+function praise(who,coins,msg){
+  const [min,title,lines]=PRAISE.find(p=>coins>=p[0]);
+  const txt=fill(pick(lines),{U:who});
+  if(title)banner(title,who+' — '+msg,coins>=1000?3.2:2.4);
+  $('rtext').textContent=txt;$('radio').className=coins>=300?'urgent':'';radioT=4;radioPrio=3;SFX.radio();
+  if(coins>=10||clock-(praise.last||-99)>8){praise.last=clock;say(fill(pick(lines),{U:spoken(who)}))}
 }
 const safeImg=u=>/^https:\/\/[^\s"'<>]+$/.test(String(u||''))?String(u):'';
 const norm=n=>String(n||'').toLowerCase().replace(/[^a-z]/g,'').replace(/s$/,'');
 function onGiftList(list){if(!Array.isArray(list))return;const m={};for(const g of list){const u=safeImg(g.img);if(u)m[norm(g.name)]=u}
   document.querySelectorAll('.gift').forEach(el=>{const u=m[norm(el.querySelector('b').textContent)];if(!u)return;const im=new Image();im.alt='';im.src=u;im.onload=()=>{const old=el.querySelector('svg,img');old&&old.replaceWith(im)}})}
 function ticker(who,g,msg){const t=$('ticker');t.querySelector('.empty')?.remove();const d=document.createElement('span');d.className='tk';const im=safeImg(g.img);d.innerHTML=`${im?`<img src="${esc(im)}" alt="">`:''}${esc(who)} <i>${g.repeatCount>1?g.repeatCount+'× ':''}${esc(g.giftName||'gift')}</i>`;t.querySelector('b').after(d);while(t.querySelectorAll('.tk').length>6)t.querySelector('.tk:last-of-type').remove()}
-function onLike(c,who){taps+=c;tapBank+=c;let n=0;while(tapBank>=10){tapBank-=10;n++}if(n&&queue.length<300){enqueue('runner',Math.min(n,30),who);SFX.spawn()}}
-function onFollow(who){enqueue('runner',3,who);toast(`${esc(who)} followed → <em>3 fighters</em>`)}
+function onLike(c,who){$('tap').classList.add('on');taps+=c;tapBank+=c;let n=0;while(tapBank>=10){tapBank-=10;n++}if(n&&queue.length<300){enqueue('runner',Math.min(n,30),who);SFX.spawn()}}
+const chatCd=new Map();
+function onChat(who){const now=clock;if((chatCd.get(who)||-99)>now-6)return;chatCd.set(who,now);if(chatCd.size>500)chatCd.clear();if(queue.length<300){enqueue('runner',1,who);SFX.spawn();toast(`${esc(who)} <em>joined the fight!</em>`)}}
+function onFollow(who){enqueue('runner',3,who,3);SFX.level();banner('THANK YOU!',who+' followed — 3 fighters join!',2.4);toast(`${esc(who)} followed → <em>3 fighters</em>`);radio('Welcome to the squad, '+who+'! Thanks for the follow!',{prio:3});say('Thank you '+spoken(who)+' for the follow! Welcome to the squad!')}
 function onShare(who){base=Math.min(100,base+10);toast(`${esc(who)} shared → <em>wall +10</em>`)}
 function addGifter(w,c){gifters.set(w,(gifters.get(w)||0)+c);levelGifts.set(w,(levelGifts.get(w)||0)+c);
   $('topl').innerHTML=[...gifters].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,v])=>`<li><div><em>${esc(n)}</em><span>${v}</span></div></li>`).join('')}
@@ -621,8 +641,9 @@ const drawer=$('drawer');
 $('gear').onclick=()=>drawer.classList.add('open');
 $('close').onclick=()=>drawer.classList.remove('open');
 drawer.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{const[n,c,r]=b.dataset.g.split(',');onGift({user:pick(['rojan_np','zombie_slayer7','kathmandu.king','maya_22']),nickname:'Tester',giftName:n,diamondCount:+c,repeatCount:+r})});
+$('tchat').onclick=()=>onChat(pick(['@rojan_np','@maya_22','@zombie_slayer7']));
 $('tlike').onclick=()=>onLike(100,'Tester');
-$('tfollow').onclick=()=>onFollow('Tester');
+$('tfollow').onclick=()=>onFollow(pick(['@rojan_np','@maya_22','@kathmandu.king']));
 $('tshare').onclick=()=>onShare('Tester');
 $('tskip').onclick=()=>{zombies.forEach(kill);zLeft=0};
 soundOn=store.get('zr-snd','1')==='1';voiceOn=store.get('zr-voice','1')==='1';
@@ -644,6 +665,7 @@ function openWS(){
     if(o.type==='gift')onGift(o);
     else if(o.type==='giftlist')onGiftList(o.gifts);
     else if(o.type==='like')onLike(+o.likeCount||1,idOf(o));
+    else if(o.type==='chat')onChat(idOf(o));
     else if(o.type==='follow')onFollow(idOf(o));
     else if(o.type==='share')onShare(idOf(o));
     else if(o.type==='status')setStatus(String(o.msg||''),!!o.ok)};
