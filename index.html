@@ -167,6 +167,7 @@ input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;border:1px s
       <input id="user" placeholder="Your TikTok username" autocomplete="off" autocapitalize="off">
       <button id="go" class="r">Connect LIVE</button>
     </div>
+    <p class="note" id="evt">From TikTok: 0 gifts · 0 taps · 0 follows</p>
     <p id="status">Test mode: the buttons above spawn heroes.</p>
     <p class="note">Real gifts work when this page is opened from your bridge server link (see README). Hide this panel before you go live.</p>
   </div>
@@ -631,6 +632,7 @@ $('tvoice').onclick=()=>{voiceOn=!voiceOn;store.set('zr-voice',voiceOn?'1':'0');
 $('startBtn').onclick=()=>{initAudio();try{AC&&AC.resume()}catch(e){};$('start').remove();lastGift=clock;enqueue('runner',4,null);enqueue('pistol',2,null);startLevel(1)};
 
 // ================= LIVE BRIDGE =================
+const evc={gift:0,like:0,follow:0,share:0};
 let ws=null,wantUser=store.get('zr-user','');$('user').value=wantUser;
 function setStatus(t,ok){$('status').textContent=t;$('status').className=ok?'ok':''}
 function openWS(){
@@ -638,6 +640,7 @@ function openWS(){
   try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host)}catch(e){return}
   ws.onopen=()=>{clearInterval(window.zrBeat);window.zrBeat=setInterval(()=>{try{ws&&ws.readyState===1&&ws.send('{"type":"ping"}')}catch(e){}},60000);setStatus('Bridge server connected. Enter username and tap Connect LIVE.',true);if(wantUser)ws.send(JSON.stringify({type:'connect',username:wantUser}))};
   ws.onmessage=m=>{let o;try{o=JSON.parse(m.data)}catch(e){return}
+    if(o.type in evc){evc[o.type]+=o.type==='like'?(+o.likeCount||1):1;$('evt').textContent=`From TikTok: ${evc.gift} gifts · ${evc.like} taps · ${evc.follow} follows`}
     if(o.type==='gift')onGift(o);
     else if(o.type==='giftlist')onGiftList(o.gifts);
     else if(o.type==='like')onLike(+o.likeCount||1,idOf(o));
