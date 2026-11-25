@@ -15,6 +15,68 @@ const fs = require('fs');
 const gamePage = () => { const p = path.join(__dirname, 'public', 'index.html'); return fs.existsSync(p) ? p : path.join(__dirname, 'index.html'); };
 app.get(['/', '/index.html'], (req, res) => res.sendFile(gamePage()));
 app.get('/healthz', (req, res) => res.send('ok'));
+
+// ---------- Natural commander voice (Google Cloud Text-to-Speech) ----------
+// Set GOOGLE_TTS_KEY in Render > Environment. Optional TTS_VOICE (comma list, first that works is used).
+const TTS_KEY = process.env.GOOGLE_TTS_KEY || '';
+const TTS_VOICES = (process.env.TTS_VOICE || 'en-US-Chirp3-HD-Charon,en-US-Neural2-J,en-US-Wavenet-D').split(',').map(v => v.trim()).filter(Boolean);
+const ttsCache = new Map();
+let goodVoice = null;
+// FREE default: Microsoft Edge "Read Aloud" neural voices (no key, no card; unofficial, may stop working someday)
+const EDGE_VOICE = process.env.EDGE_VOICE || 'en-US-GuyNeural';
+let edgeLib = null, edgeFails = 0;
+const xmlEsc = t => t.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
+async function edgeSpeak(text) {
+  if (!edgeLib) edgeLib = await import('msedge-tts');
+  const { MsEdgeTTS, OUTPUT_FORMAT } = edgeLib.MsEdgeTTS ? edgeLib : (edgeLib.default || edgeLib);
+  const tts = new MsEdgeTTS();
+  await tts.setMetadata(EDGE_VOICE, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+  const out = await tts.toStream(xmlEsc(text));
+  const stream = out && out.audioStream ? out.audioStream : out;
+  const buf = await new Promise((resolve, reject) => {
+    const parts = []; const t = setTimeout(() => reject(new Error('edge timeout')), 10000);
+    stream.on('data', d => parts.push(d));
+    stream.on('close', () => { clearTimeout(t); resolve(Buffer.concat(parts)); });
+    stream.on('end', () => { clearTimeout(t); resolve(Buffer.concat(parts)); });
+    stream.on('error', e => { clearTimeout(t); reject(e); });
+  });
+  try { tts.close && tts.close(); } catch (e) {}
+  if (!buf.length) throw new Error('edge returned no audio');
+  return buf;
+}
+const ttsOn = () => !!TTS_KEY || edgeFails < 5;
+app.get('/tts/status', (req, res) => res.json({ enabled: ttsOn(), voice: TTS_KEY ? (goodVoice || TTS_VOICES[0]) : EDGE_VOICE + ' (free)' }));
+app.get('/tts', async (req, res) => {
+  if (!ttsOn()) return res.status(404).end();
+  const text = String(req.query.text || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+  if (!text) return res.status(400).end();
+  const send = buf => { res.set('Content-Type', 'audio/mpeg'); res.set('Cache-Control', 'public, max-age=86400'); res.send(buf); };
+  if (ttsCache.has(text)) return send(ttsCache.get(text));
+  const remember = buf => { if (ttsCache.size > 400) ttsCache.delete(ttsCache.keys().next().value); ttsCache.set(text, buf); };
+  if (!TTS_KEY) {
+    try { const buf = await edgeSpeak(text); edgeFails = 0; remember(buf); return send(buf); }
+    catch (e) { edgeFails++; console.log('Free voice failed (' + edgeFails + '):', e.message); return res.status(502).end(); }
+  }
+  for (const name of (goodVoice ? [goodVoice] : TTS_VOICES)) {
+    try {
+      const languageCode = name.split('-').slice(0, 2).join('-');
+      const audioConfig = { audioEncoding: 'MP3' };
+      if (!/Chirp/i.test(name)) audioConfig.speakingRate = 1.05;
+      const r = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(TTS_KEY), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: { text }, voice: { languageCode, name }, audioConfig })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.audioContent) { console.log('TTS voice failed:', name, j.error && j.error.message); continue; }
+      goodVoice = name;
+      const buf = Buffer.from(j.audioContent, 'base64');
+      if (ttsCache.size > 400) ttsCache.delete(ttsCache.keys().next().value);
+      ttsCache.set(text, buf);
+      return send(buf);
+    } catch (e) { console.log('TTS error:', e.message); }
+  }
+  res.status(502).end();
+});
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
@@ -86,6 +148,10 @@ async function connectTikTok(username) {
   conn.on(ev.follow, d => broadcast({ type: 'follow', ...who(d) }));
   conn.on(ev.share, d => broadcast({ type: 'share', ...who(d) }));
   conn.on(ev.chat, d => broadcast({ type: 'chat', ...who(d), comment: String(d.comment || '').slice(0, 80) }));
+  // Diagnostics: count every message type TikTok sends (shows if likes arrive at all)
+  const seen = {};
+  conn.on(CE.RAW_DATA || 'rawData', (type) => { seen[type] = (seen[type] || 0) + 1; });
+  const tick = setInterval(() => { if (tiktok !== conn) return clearInterval(tick); const k = Object.keys(seen); if (k.length) { console.log('TikTok messages (last 30 s):', JSON.stringify(seen)); k.forEach(x => delete seen[x]); } }, 30000);
   conn.on(ev.err, e => console.log('TikTok error:', e && (e.message || e.info || e)));
   conn.on(ev.end, () => { tiktok = null; tiktokUser = ''; status(false, 'Your LIVE ended.'); });
   conn.on(ev.disc, () => { if (tiktok === conn) { tiktok = null; tiktokUser = ''; } status(false, 'Disconnected from TikTok. Tap Connect LIVE again.'); });
