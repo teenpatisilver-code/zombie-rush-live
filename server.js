@@ -20,6 +20,9 @@ const wss = new WebSocketServer({ server });
 
 let lib = null;          // tiktok-live-connector, loaded once
 let tiktok = null;
+let tiktokUser = '';
+let connecting = false;
+let lastAttempt = 0;
 let giftList = [];       // official gift pictures from TikTok
 const giftImg = {};
 const imgOf = g => { const u = g?.giftImage?.giftPictureUrl || g?.giftPictureUrl || g?.image?.url_list?.[0] || g?.image?.urlList?.[0] || g?.icon?.url_list?.[0] || ''; return /^https:\/\//.test(u) ? u : ''; };
@@ -27,6 +30,7 @@ let lastStatus = { type: 'status', ok: false, msg: 'Bridge ready. Not connected 
 
 function broadcast(obj) {
   const s = JSON.stringify(obj);
+  if (obj.type !== 'status') console.log('EVENT', obj.type, obj.user || '', obj.giftName || '', obj.likeCount || '', '-> games open:', wss.clients.size);
   wss.clients.forEach(c => { if (c.readyState === 1) c.send(s); });
 }
 function status(ok, msg) {
@@ -39,6 +43,12 @@ const who = d => ({ user: d.user?.uniqueId || d.uniqueId || '', nickname: d.user
 async function connectTikTok(username) {
   username = String(username || '').replace(/^@/, '').trim();
   if (!username) return status(false, 'Enter your TikTok username.');
+  // Already connected to this LIVE? Don't reconnect (saves sign-server quota).
+  if (tiktok && tiktokUser === username) return status(true, `Already connected to @${username} LIVE. Gifts are on!`);
+  if (connecting) return status(false, 'Connecting… please wait.');
+  const wait = 20000 - (Date.now() - lastAttempt);
+  if (wait > 0) return status(false, `Please wait ${Math.ceil(wait / 1000)} s before trying again (avoids the rate limit).`);
+  lastAttempt = Date.now(); connecting = true;
   if (!lib) lib = await import('tiktok-live-connector');
   const { TikTokLiveConnection, WebcastEvent, ControlEvent } = lib;
   if (tiktok) { try { tiktok.disconnect(); } catch (e) {} tiktok = null; }
@@ -50,10 +60,11 @@ async function connectTikTok(username) {
   });
   try {
     const state = await conn.connect();
-    tiktok = conn;
+    tiktok = conn; tiktokUser = username; connecting = false;
     status(true, `Connected to @${username} LIVE (room ${state.roomId}). Gifts are on!`);
     // Gift pictures arrive with each gift and are collected as viewers send them.
   } catch (err) {
+    connecting = false;
     return status(false, 'Could not connect: ' + (err && err.message ? err.message : err));
   }
 
@@ -70,8 +81,8 @@ async function connectTikTok(username) {
   conn.on(WebcastEvent.LIKE, d => broadcast({ type: 'like', ...who(d), likeCount: d.likeCount || 1 }));
   conn.on(WebcastEvent.FOLLOW, d => broadcast({ type: 'follow', ...who(d) }));
   conn.on(WebcastEvent.SHARE, d => broadcast({ type: 'share', ...who(d) }));
-  conn.on(WebcastEvent.STREAM_END, () => status(false, 'Your LIVE ended.'));
-  conn.on(ControlEvent.DISCONNECTED, () => status(false, 'Disconnected from TikTok. Tap Connect LIVE again.'));
+  conn.on(WebcastEvent.STREAM_END, () => { tiktok = null; tiktokUser = ''; status(false, 'Your LIVE ended.'); });
+  conn.on(ControlEvent.DISCONNECTED, () => { if (tiktok === conn) { tiktok = null; tiktokUser = ''; } status(false, 'Disconnected from TikTok. Tap Connect LIVE again.'); });
 }
 
 wss.on('connection', ws => {
