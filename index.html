@@ -122,7 +122,7 @@ select,input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;borde
       <div class="team zom"><b id="sz">0</b><span>ZOMBIES</span></div>
     </div>
     <div class="vsbar"><div id="vsH"></div><em><span><i id="hc">0</i> HEROES</span><span id="vsMsg">EVEN FIGHT</span><span><b id="zc">0</b> ZOMBIES</span></em></div>
-    <div class="row"><span class="chip">Wall <span id="hpn">100</span>%</span><div class="bar" id="hpBar"><div id="hp"></div></div><span class="chip">Kills <u id="kc">0</u></span><span class="chip" id="hypeRow"><span id="hypeTxt">HYPE x1</span><span class="mini" id="hypeBar"><i id="hype"></i></span></span><button id="gear" aria-label="Open control panel">⚙</button></div>
+    <div class="row"><span class="chip">Wall <span id="hpn">100</span>%</span><div class="bar" id="hpBar"><div id="hp"></div></div><span class="chip">Kills <u id="kc">0</u></span><span class="chip" id="threat" style="color:#ff5a6e">THREAT 1</span><span class="chip" id="hypeRow"><span id="hypeTxt">HYPE x1</span><span class="mini" id="hypeBar"><i id="hype"></i></span></span><button id="gear" aria-label="Open control panel">⚙</button></div>
     <div id="radio"><span>RADIO</span><b id="rtext">Stand by…</b></div>
   </div>
   <div id="streak"></div>
@@ -265,10 +265,10 @@ const HT={
   pistol:{hp:6,dmg:1.4,spd:85,r:9,range:120,cd:.6,col:'#22c3a6',w:'pistol'},
   rifle:{hp:11,dmg:1.8,spd:75,r:10,range:160,cd:.32,col:'#7ea04a',w:'rifle'},
   shotgun:{hp:15,dmg:2.2,spd:70,r:11,range:115,cd:.85,col:'#c99a3a',w:'shotgun'},
-  flamer:{hp:26,dmg:.9,spd:60,r:12,range:95,cd:.1,col:'#e0552e',w:'flame',life:60},
+  flamer:{hp:26,dmg:.9,spd:60,r:12,range:95,cd:.1,col:'#e0552e',w:'flame'},
   grenadier:{hp:16,dmg:8,spd:65,r:11,range:200,cd:1.5,col:'#8b7bd8',w:'gl',rad:55},
-  tank:{hp:160,dmg:12,spd:36,r:26,range:200,cd:2.2,col:'#55653a',w:'cannon',rad:60,life:45},
-  mech:{hp:300,dmg:1.2,spd:28,r:30,range:180,cd:.09,col:'#8d96a8',w:'minigun',life:40}
+  tank:{hp:160,dmg:12,spd:36,r:26,range:200,cd:2.2,col:'#55653a',w:'cannon',rad:60},
+  mech:{hp:300,dmg:1.2,spd:28,r:30,range:180,cd:.09,col:'#8d96a8',w:'minigun'}
 };
 const ZT={
   walker:{hp:5,spd:34,dmg:1.2,wd:3,r:10,from:1,w:10},
@@ -354,13 +354,18 @@ function radio(text,{speak=false,urgent=false,prio=1}={}){
 function streakMsg(t){$('streak').textContent=t;$('streak').style.opacity=1;streakT=1.6}
 
 // ================= GAME FLOW =================
-function zStatsMult(){return{hp:1+(level-1)*.3,spd:1+Math.min(level,40)*.025,wd:1+level*.06,dmg:1+level*.1}}
+const tier=()=>Math.floor((level-1)/5);
+const THREATS=['Normal infected.','FAST: the horde moves 15% quicker and hits harder.','ARMORED: helmets and plates — some zombies take 40% less damage.','REGENERATING: wounded zombies heal themselves. Finish them fast!','RAGE: hurt zombies go berserk and sprint.','APEX: every mutation at once. Good luck.'];
+function zStatsMult(){const T=tier();return{hp:(1+(level-1)*.3)*Math.pow(1.35,T),spd:(1+Math.min(level,40)*.025)*Math.min(1.9,1+.15*T),wd:(1+level*.06)*Math.pow(1.2,T),dmg:(1+level*.1)*Math.pow(1.25,T)}}
 function power(){let p=0;for(const h of humans)if(!h.dead)p+=HW[h.kind];return p}
 function startLevel(n){
-  level=n;zLeft=20+n*10+Math.floor(power()*.8);zTimer=2.5;phase='play';levelGifts=new Map();dangerSaid=false;bossOut=null;
+  level=n;zLeft=20+n*10+tier()*15+Math.floor(power()*.8);zTimer=2.5;phase='play';levelGifts=new Map();dangerSaid=false;bossOut=null;
   const ns=Math.floor((n-1)/5)%SCENES.length,newScene=ns!==scene;scene=ns;
   $('lvl').textContent='LEVEL '+n;$('scene').textContent=SCENES[scene].name;paintBG();
-  if(newScene){banner('NEW ZONE','LEVEL '+n+' — '+SCENES[scene].name,2.6);radio('Moving to '+SCENES[scene].name.toLowerCase()+'. Stay sharp!',{speak:true,prio:3})}
+  $('threat').textContent='THREAT '+(tier()+1);
+  if(newScene&&n>1){const T=tier(),d=THREATS[Math.min(T,THREATS.length-1)];banner('THREAT LEVEL '+(T+1),SCENES[scene].name+' — '+d,3.4);SFX.boss();SFX.alarm();
+    say('Warning! Threat level '+(T+1)+'! '+d.replace(/^[A-Z]+:\s*/,'')+' The zombies are stronger, faster and angrier. Every gift counts now!',3)}
+  else if(newScene){banner('NEW ZONE','LEVEL '+n+' — '+SCENES[scene].name,2.6);radio('Moving to '+SCENES[scene].name.toLowerCase()+'. Stay sharp!',{speak:true,prio:3})}
   else if(n%5===0){const name=BOSSES[(n/5-1)%BOSSES.length];banner('LEVEL '+n,'BOSS: '+name,2.4);SFX.boss();radio(`Warning! ${name} detected. Small arms won't stop it — we need TANKS!`,{speak:true,urgent:true,prio:3})}
   else if(NEWZ[n]){banner('LEVEL '+n,'NEW: '+NEWZ[n],2.4);radio('New threat: '+NEWZ[n],{speak:true,urgent:true,prio:3})}
   else{banner('LEVEL '+n,'Hold the wall!',1.8);radio(fill(pick(L.intro),{L:n,N:zLeft}),{speak:true,prio:2})}
@@ -372,8 +377,9 @@ function spawnZombie(isBoss,px,py,force){
   if(!isBoss&&!force){const pool=Object.entries(ZT).filter(([,t])=>level>=t.from);let tot=0;const ws=pool.map(([n,t])=>{const w=t.w+(n==='brute'||n==='bomber'?level*.05:0);tot+=w;return[n,w]});let r=Math.random()*tot;for(const[n,w]of ws){if((r-=w)<=0){k=n;break}}}
   const T=ZT[k];
   const z={type:isBoss?'boss':k,x:px??W/2+rnd(-1,1)*(W/2-60),y:py??TOPY-rnd(5,45),hp:T.hp*m.hp,spd:T.spd*m.spd*rnd(.85,1.15),dmg:T.dmg*m.dmg,wd:T.wd*m.wd,r:T.r,cd:0,t:rnd(0,9),dead:0,burn:0,sc:rnd(2,6),sum:6};
-  if(isBoss){Object.assign(z,{hp:150+level*45,spd:13,dmg:14*m.dmg,wd:18*m.wd,r:34,name:BOSSES[(level/5-1)%BOSSES.length],x:W/2});bossOut=z}
+  if(isBoss){Object.assign(z,{hp:(150+level*45)*Math.pow(1.3,tier()),spd:13,dmg:14*m.dmg,wd:18*m.wd,r:34,name:BOSSES[(level/5-1)%BOSSES.length],x:W/2});bossOut=z}
   else if(level>=12&&Math.random()<Math.min(.4,(level-11)*.03)){z.elite=1;z.hp*=2;z.spd*=1.1}
+  if(!isBoss&&tier()>=2&&Math.random()<Math.min(.55,.15*tier()))z.armor=1;
   z.max=z.hp;zombies.push(z);
 }
 function zboom(z,full){if(z.exploded)return;z.exploded=1;const m=zStatsMult();
@@ -447,7 +453,7 @@ function kill(e){if(e.dead)return;e.dead=1;e.dt=0;e.fall=Math.random()<.5?-1:1;
   if(isZ){kills++;killTimes.push(clock);SFX.splat();if(e.type==='boss'){banner(e.name+' DOWN!','',2);radio(`${e.name} is down! Incredible work!`,{speak:true,prio:3});explode(e.x,e.y,90,0,0)}}
   else if(!e.quiet)SFX.hurt();
 }
-function hit(t,d){t.hp-=d;if(Math.random()<.5)fx.push({k:'hit',x:t.x+rnd(-4,4),y:t.y-14,t:0,life:.25});if(t.hp<=0)kill(t)}
+function hit(t,d){t.hp-=t.armor?d*.6:d;if(Math.random()<.5)fx.push({k:'hit',x:t.x+rnd(-4,4),y:t.y-14,t:0,life:.25});if(t.hp<=0)kill(t)}
 function explode(x,y,rad,dmg,big){
   for(const z of zombies)if(!z.dead&&Math.hypot(z.x-x,z.y-y)<rad+z.r)hit(z,dmg);
   fx.push({k:'boom',x,y,t:0,life:.6,r:rad});shake=Math.min(16,shake+(big?7:3));
@@ -480,10 +486,10 @@ function update(dt){
   if(phase==='play'){
     zTimer-=dt;
     if(zLeft>0&&zTimer<=0&&zAlive<220){
-      const g=Math.min(zLeft,45,6+Math.floor(level*1.5)+Math.floor(power()/8));
+      const g=Math.min(zLeft,55,6+Math.floor(level*1.5)+tier()*4+Math.floor(power()/8));
       const boss=level%5===0&&zLeft<=g&&!bossOut;
       for(let i=0;i<g;i++)spawnZombie(boss&&i===0);
-      zLeft-=g;zTimer=Math.max(1,3.2-level*.12)*rnd(.8,1.2);SFX.groan();
+      zLeft-=g;zTimer=Math.max(.8,(3.2-level*.12)*Math.pow(.88,tier()))*rnd(.8,1.2);SFX.groan();
       if(g>=12&&streakT<=0)streakMsg('HORDE INCOMING!')}
     if(zLeft===0&&zAlive===0){phase='clear';phaseT=3;base=Math.min(100,base+20);won++;
       const mvp=[...levelGifts].sort((a,b)=>b[1]-a[1])[0];
@@ -526,7 +532,10 @@ function update(dt){
     if(z.type==='boss'&&(z.sum-=dt)<=0){z.sum=7;for(let i=0;i<4;i++)spawnZombie(false,z.x+rnd(-50,50),z.y+rnd(-20,10),'walker');SFX.boss()}
     if(z.type==='bomber'){const hb=nearest(z,humans,60);if((hb&&Math.hypot(hb.x-z.x,hb.y-z.y)<z.r+hb.r+6)||z.y>=BASEY-6){zboom(z,true);continue}}
     const buff=screamers.some(s=>s!==z&&Math.hypot(s.x-z.x,s.y-z.y)<140)?1.4:1;
-    const spd=z.spd*buff;
+    const T=tier();
+    if(T>=3&&z.hp<z.max)z.hp=Math.min(z.max,z.hp+z.max*.025*dt);
+    const rage=T>=4&&z.hp<z.max*.5?1.6:1;z.rage=rage>1;
+    const spd=z.spd*buff*rage;
     if(z.type==='screamer'&&(z.sc-=dt)<=0){z.sc=6;fx.push({k:'ring',x:z.x,y:z.y-30,t:0,life:.8});SFX.scream()}
     const h=nearest(z,humans,z.type==='spitter'?160:140);
     if(z.type==='spitter'&&z.cd<=0&&(h||z.y>BASEY-170)){z.cd=2.4;const tx=h?h.x:z.x,ty=h?h.y:BASEY+10;acid.push({sx:z.x,sy:z.y-26,tx,ty,t:0,dur:.7,dmg:z.dmg,wall:!h});continue}
@@ -592,6 +601,8 @@ function drawZombie(z){
     if(t==='screamer'){cx.fillStyle='#000';cx.beginPath();cx.ellipse(0,hy+3.5,2.6,3.4+Math.abs(Math.sin(z.t*3)),0,0,7);cx.fill()}
     else{cx.fillStyle='#1a0303';rr(-3.5,hy+2,7,3.5,1);cx.fillStyle='#e8e0c8';for(let i=-3;i<3;i+=1.6)cx.fillRect(i,hy+2,1,1.4);cx.fillStyle='#8a0b0b';cx.fillRect(1.5,hy+5,1.2,2.5+Math.sin(z.t)*1)}
     cx.fillStyle='#5a0a0a';circ(-3,-20,1.5);circ(4,-16,1.2);
+    if(z.armor){cx.fillStyle='#8a929e';cx.beginPath();cx.arc(0,hy-1,7.4,Math.PI,0);cx.fill();cx.fillStyle='#5d646f';cx.fillRect(-7.4,hy-1.5,14.8,2);rr(-7,-27,4,6,1.5);rr(3,-27,4,6,1.5)}
+    if(z.rage){cx.fillStyle='rgba(255,40,40,.35)';circ(0,hy,9)}
   }
   cx.restore();
   if(!z.dead&&(z.hp<z.max||boss)){const w=boss?90:22,y=z.y-(boss?126:46*s);cx.fillStyle='#000b';cx.fillRect(z.x-w/2,y,w,boss?7:4);cx.fillStyle=boss?'#ff3b3b':'#7cf25a';cx.fillRect(z.x-w/2,y,w*Math.max(0,z.hp/z.max),boss?7:4)}
