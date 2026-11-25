@@ -22,7 +22,7 @@ let lib = null;          // tiktok-live-connector, loaded once
 let tiktok = null;
 let giftList = [];       // official gift pictures from TikTok
 const giftImg = {};
-const imgOf = g => { const u = g?.image?.url_list?.[0] || g?.image?.urlList?.[0] || g?.icon?.url_list?.[0] || ''; return /^https:\/\//.test(u) ? u : ''; };
+const imgOf = g => { const u = g?.giftImage?.giftPictureUrl || g?.giftPictureUrl || g?.image?.url_list?.[0] || g?.image?.urlList?.[0] || g?.icon?.url_list?.[0] || ''; return /^https:\/\//.test(u) ? u : ''; };
 let lastStatus = { type: 'status', ok: false, msg: 'Bridge ready. Not connected to TikTok yet.' };
 
 function broadcast(obj) {
@@ -46,20 +46,13 @@ async function connectTikTok(username) {
   status(false, `Connecting to @${username}… (you must be LIVE right now)`);
   const conn = new TikTokLiveConnection(username, {
     signApiKey: process.env.SIGN_API_KEY || undefined,
-    enableExtendedGiftInfo: true
+    enableExtendedGiftInfo: false // the gift-list download needs Euler's paid plan, so it stays off
   });
   try {
     const state = await conn.connect();
     tiktok = conn;
     status(true, `Connected to @${username} LIVE (room ${state.roomId}). Gifts are on!`);
-    try {
-      const fetchGifts = conn.fetchAvailableGifts || conn.getAvailableGifts;
-      const list = fetchGifts ? await fetchGifts.call(conn) : [];
-      giftList = (Array.isArray(list) ? list : []).map(g => ({ name: g.name, coins: g.diamond_count ?? g.diamondCount, img: imgOf(g) })).filter(g => g.name && g.img);
-      giftList.forEach(g => { giftImg[g.name] = g.img; });
-      broadcast({ type: 'giftlist', gifts: giftList });
-      console.log(`Loaded ${giftList.length} gift pictures from TikTok`);
-    } catch (e) { console.log('Could not load gift pictures: ' + e.message); }
+    // Gift pictures arrive with each gift and are collected as viewers send them.
   } catch (err) {
     return status(false, 'Could not connect: ' + (err && err.message ? err.message : err));
   }
@@ -70,7 +63,8 @@ async function connectTikTok(username) {
     if (giftType === 1 && !d.repeatEnd) return;
     const giftName = d.giftDetails?.giftName || d.extendedGiftInfo?.name || d.giftName || 'Gift';
     const coins = d.giftDetails?.diamondCount || d.extendedGiftInfo?.diamond_count || d.diamondCount || GIFT_COINS[giftName] || 1;
-    const img = imgOf(d.extendedGiftInfo) || imgOf(d.giftDetails) || giftImg[giftName] || '';
+    const img = imgOf(d.giftDetails) || imgOf(d) || giftImg[giftName] || '';
+    if (img && !giftImg[giftName]) { giftImg[giftName] = img; giftList.push({ name: giftName, coins, img }); broadcast({ type: 'giftlist', gifts: giftList }); }
     broadcast({ type: 'gift', ...who(d), giftName, giftId: d.giftId, repeatCount: d.repeatCount || 1, diamondCount: coins, img });
   });
   conn.on(WebcastEvent.LIKE, d => broadcast({ type: 'like', ...who(d), likeCount: d.likeCount || 1 }));
