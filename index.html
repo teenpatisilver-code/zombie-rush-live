@@ -101,6 +101,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 button{min-height:44px;border-radius:10px;border:0;background:#232b3d;color:var(--ink);font:700 13.5px Rubik,sans-serif;cursor:pointer;padding:6px}
 button:active{transform:scale(.97)}
 button.r{background:#c42a47}button.g{background:#2f6a22}button.y{background:#8a5f00}button.p{background:#5b2aa0}
+.vol{display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center}.vol input{grid-column:1/-1;min-height:32px;padding:0;accent-color:#ff3b5c}
 select,input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;border:1px solid #ffffff30;background:#151a26;color:var(--ink);padding:0 12px;width:100%}
 .conn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
 #status{font-size:13px;color:#b9c3d8;margin:0}#status.ok{color:var(--z)}
@@ -165,7 +166,13 @@ select,input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;borde
       <button id="tsnd">Sound: on</button>
       <button id="tvoice">Voice: on</button>
       <button id="ttest">Test voice</button>
+      <button id="tmusic">Choose music</button>
+      <button id="tmstop">Music: off</button>
     </div>
+    <input type="file" id="musicFile" accept="audio/*" hidden>
+    <label class="note vol">Commander volume <b id="vvolN">250%</b><input type="range" id="vvol" min="1" max="5" step="0.25"></label>
+    <label class="note vol">Music volume <b id="mvolN">50%</b><input type="range" id="mvol" min="0" max="1" step="0.05"></label>
+    <p class="note">Play your background music here (not in another app): it gets quieter by itself whenever the commander speaks.</p>
     <p class="note" id="vnote">Checking natural voice…</p>
     <label class="note" style="display:grid;gap:4px">Backup phone voice (best voices are listed first)<select id="voiceSel"></select></label>
     <div class="conn">
@@ -198,7 +205,15 @@ const store={get(k,d){try{return localStorage.getItem(k)??d}catch(e){return d}},
 
 // ================= SOUND =================
 let AC=null,master=null,noiseBuf=null,soundOn=true,voiceOn=true;const lastS={};
-function initAudio(){if(AC)return;try{AC=new (window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=.5;master.connect(AC.destination);
+let voiceBus=null,musicBus=null,musicEl=null,musicSrc=null;
+const AV={voice:+store.get('zr-vvol','2.5')||2.5,music:+store.get('zr-mvol','0.5')||0.5,sfx:.5};
+function duck(on){if(!AC)return;const t=AC.currentTime;
+  master.gain.setTargetAtTime(on?AV.sfx*.25:AV.sfx,t,on?.05:.4);
+  musicBus.gain.setTargetAtTime(on?AV.music*.18:AV.music,t,on?.08:.6)}
+function initAudio(){if(AC)return;try{AC=new (window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=AV.sfx;master.connect(AC.destination);
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=6;comp.ratio.value=8;comp.attack.value=.003;comp.release.value=.2;comp.connect(AC.destination);
+  voiceBus=AC.createGain();voiceBus.gain.value=AV.voice;voiceBus.connect(comp);
+  musicBus=AC.createGain();musicBus.gain.value=AV.music;musicBus.connect(AC.destination);
   noiseBuf=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}catch(e){AC=null}}
 function can(n,gap){const t=performance.now();if(!AC||!soundOn||(lastS[n]&&t-lastS[n]<gap))return false;lastS[n]=t;return true}
 function noise(dur,type,freq,vol,q,delay=0){const s=AC.createBufferSource();s.buffer=noiseBuf;const f=AC.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q)f.Q.value=q;const g=AC.createGain(),t=AC.currentTime+delay;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t,Math.random()*.5);s.stop(t+dur)}
@@ -244,14 +259,14 @@ const cleanT=t=>String(t).replace(/@([\w.]+)/g,(m,u)=>spoken(u));
 function fetchBuf(t){if(ttsBuf.has(t))return ttsBuf.get(t);
   const p=fetch('/tts?text='+encodeURIComponent(t)).then(r=>{if(!r.ok)throw new Error('tts '+r.status);return r.arrayBuffer()}).then(ab=>new Promise((ok,no)=>AC.decodeAudioData(ab,ok,no)));
   p.catch(()=>ttsBuf.delete(t));if(ttsBuf.size>200)ttsBuf.delete(ttsBuf.keys().next().value);ttsBuf.set(t,p);return p}
-function playCloudP(t){return fetchBuf(t).then(b=>new Promise(res=>{const src=AC.createBufferSource(),g=AC.createGain();src.buffer=b;g.gain.value=1.5;src.connect(g);g.connect(AC.destination);vSrc=src;src.onended=()=>{vSrc=null;res()};src.start()}))}
+function playCloudP(t){return fetchBuf(t).then(b=>new Promise(res=>{const src=AC.createBufferSource(),g=AC.createGain();src.buffer=b;g.gain.value=1;src.connect(g);g.connect(voiceBus);vSrc=src;src.onended=()=>{vSrc=null;res()};src.start()}))}
 function phoneP(t){return new Promise(res=>{if(!('speechSynthesis' in window))return res();try{const u=new SpeechSynthesisUtterance(t);const v=curVoice();if(v){u.voice=v;u.lang=v.lang}u.rate=1.03;u.onend=res;u.onerror=res;speechSynthesis.speak(u)}catch(e){res()}})}
 function speakNow(t){const p=(cloudTTS&&AC)?playCloudP(t).catch(()=>phoneP(t)):phoneP(t);
   return Promise.race([p,new Promise(r=>setTimeout(r,Math.min(20000,2500+t.length*90)))])}
 async function pump(){if(vq.busy)return;const it=vq.shout.length?vq.shout.shift():vq.game;if(!it)return;if(it===vq.game)vq.game=null;
-  vq.busy=true;lastTalk=clock;if(it.ban)banner(...it.ban);if(it.radio)$('rtext').textContent=it.radio;
+  vq.busy=true;lastTalk=clock;duck(true);if(it.ban)banner(...it.ban);if(it.radio)$('rtext').textContent=it.radio;
   try{if(voiceOn)await speakNow(it.text);else await new Promise(r=>setTimeout(r,it.ban?2200:0))}catch(e){}
-  vq.busy=false;lastTalk=clock;pump()}
+  vq.busy=false;lastTalk=clock;if(!vq.shout.length&&!vq.game)duck(false);pump()}
 function shout(text,ban){const t=cleanT(text);if(cloudTTS&&AC&&voiceOn)fetchBuf(t);vq.shout.push({text:t,ban});pump()}
 function stopVoice(){vq.shout.length=0;vq.game=null;try{vSrc&&vSrc.stop()}catch(e){}try{speechSynthesis.cancel()}catch(e){}}
 // game lines: never interrupt a shout-out; only the newest waiting game line is kept; small talk only when quiet
@@ -722,6 +737,14 @@ $('tvoice').onclick=()=>{voiceOn=!voiceOn;store.set('zr-voice',voiceOn?'1':'0');
 loadVoices();try{speechSynthesis.onvoiceschanged=loadVoices}catch(e){}
 $('voiceSel').onchange=()=>{const v=curVoice();if(v)store.set('zr-vname',v.name);say('Commander online. Hold the wall!',3)};
 $('ttest').onclick=()=>say('Thank you rojan for the Money Gun! Tank commander on the field!',3);
+const volUI=()=>{$('vvol').value=AV.voice;$('vvolN').textContent=Math.round(AV.voice*100)+'%';$('mvol').value=AV.music;$('mvolN').textContent=Math.round(AV.music*100)+'%'};volUI();
+$('vvol').oninput=e=>{AV.voice=+e.target.value;store.set('zr-vvol',AV.voice);if(voiceBus)voiceBus.gain.value=AV.voice;volUI()};
+$('mvol').oninput=e=>{AV.music=+e.target.value;store.set('zr-mvol',AV.music);if(musicBus&&!vq.busy)musicBus.gain.value=AV.music;volUI()};
+$('tmusic').onclick=()=>$('musicFile').click();
+$('musicFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;initAudio();try{AC.resume()}catch(x){}
+  if(!musicEl){musicEl=new Audio();musicEl.loop=true;musicEl.crossOrigin='anonymous';try{musicSrc=AC.createMediaElementSource(musicEl);musicSrc.connect(musicBus)}catch(x){}}
+  musicEl.src=URL.createObjectURL(f);musicEl.play().catch(()=>{});$('tmstop').textContent='Music: on'};
+$('tmstop').onclick=()=>{if(!musicEl)return;if(musicEl.paused){musicEl.play().catch(()=>{});$('tmstop').textContent='Music: on'}else{musicEl.pause();$('tmstop').textContent='Music: off'}};
 $('startBtn').onclick=()=>{initAudio();try{AC&&AC.resume()}catch(e){};$('start').remove();lastGift=clock;enqueue('runner',4,null);enqueue('pistol',2,null);startLevel(1)};
 
 // ================= LIVE BRIDGE =================
