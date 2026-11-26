@@ -13,7 +13,11 @@ const app = express();
 const fs = require('fs');
 // index.html can sit in /public or next to server.js (easier to upload from a phone)
 const gamePage = () => { const p = path.join(__dirname, 'public', 'index.html'); return fs.existsSync(p) ? p : path.join(__dirname, 'index.html'); };
-app.get(['/', '/index.html'], (req, res) => res.sendFile(gamePage()));
+const findFile = name => { const p = path.join(__dirname, 'public', name); return fs.existsSync(p) ? p : path.join(__dirname, name); };
+// Game menu is the home page; each game has its own address
+app.get(['/', '/games', '/games.html'], (req, res) => res.sendFile(findFile('games.html')));
+app.get(['/zombie', '/index.html'], (req, res) => res.sendFile(gamePage()));
+app.get(['/race', '/race.html'], (req, res) => res.redirect('/'));
 app.get('/healthz', (req, res) => res.send('ok'));
 
 // ---------- Natural commander voice (Google Cloud Text-to-Speech) ----------
@@ -92,7 +96,7 @@ let lastStatus = { type: 'status', ok: false, msg: 'Bridge ready. Not connected 
 
 function broadcast(obj) {
   const s = JSON.stringify(obj);
-  if (obj.type !== 'status') console.log('EVENT', obj.type, obj.user || '', obj.giftName || '', obj.likeCount || '', '-> games open:', wss.clients.size);
+  if (obj.type !== 'status' && obj.type !== 'join') console.log('EVENT', obj.type, obj.user || '', obj.giftName || '', obj.likeCount || '', '-> games open:', wss.clients.size);
   wss.clients.forEach(c => { if (c.readyState === 1) c.send(s); });
 }
 function status(ok, msg) {
@@ -147,6 +151,7 @@ async function connectTikTok(username) {
   conn.on(ev.like, d => broadcast({ type: 'like', ...who(d), likeCount: d.likeCount || 1 }));
   conn.on(ev.follow, d => broadcast({ type: 'follow', ...who(d) }));
   conn.on(ev.share, d => broadcast({ type: 'share', ...who(d) }));
+  conn.on(WE.MEMBER || 'member', d => broadcast({ type: 'join', ...who(d) }));
   conn.on(ev.chat, d => broadcast({ type: 'chat', ...who(d), comment: String(d.comment || '').slice(0, 80) }));
   // Diagnostics: count every message type TikTok sends (shows if likes arrive at all)
   const seen = {};
