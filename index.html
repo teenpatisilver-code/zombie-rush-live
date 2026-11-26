@@ -169,7 +169,7 @@ select,input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;borde
       <button id="tmusic">Choose music</button>
       <button id="tmstop">Music: off</button>
     </div>
-    <input type="file" id="musicFile" accept="audio/*" hidden>
+    <input type="file" id="musicFile" hidden>
     <label class="note vol">Commander volume <b id="vvolN">250%</b><input type="range" id="vvol" min="1" max="5" step="0.25"></label>
     <label class="note vol">Music volume <b id="mvolN">50%</b><input type="range" id="mvol" min="0" max="1" step="0.05"></label>
     <p class="note">Play your background music here (not in another app): it gets quieter by itself whenever the commander speaks.</p>
@@ -743,7 +743,8 @@ $('mvol').oninput=e=>{AV.music=+e.target.value;store.set('zr-mvol',AV.music);if(
 $('tmusic').onclick=()=>$('musicFile').click();
 $('musicFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;initAudio();try{AC.resume()}catch(x){}
   if(!musicEl){musicEl=new Audio();musicEl.loop=true;musicEl.crossOrigin='anonymous';try{musicSrc=AC.createMediaElementSource(musicEl);musicSrc.connect(musicBus)}catch(x){}}
-  musicEl.src=URL.createObjectURL(f);musicEl.play().catch(()=>{});$('tmstop').textContent='Music: on'};
+  if(musicEl.src)try{URL.revokeObjectURL(musicEl.src)}catch(x){}
+  musicEl.src=URL.createObjectURL(f);musicEl.play().then(()=>{$('tmstop').textContent='Music: on'}).catch(()=>{$('tmstop').textContent='Music: can\'t play that file'})};
 $('tmstop').onclick=()=>{if(!musicEl)return;if(musicEl.paused){musicEl.play().catch(()=>{});$('tmstop').textContent='Music: on'}else{musicEl.pause();$('tmstop').textContent='Music: off'}};
 $('startBtn').onclick=()=>{initAudio();try{AC&&AC.resume()}catch(e){};$('start').remove();lastGift=clock;enqueue('runner',4,null);enqueue('pistol',2,null);startLevel(1)};
 
