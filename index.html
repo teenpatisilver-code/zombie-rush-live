@@ -70,6 +70,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #ticker .tk img{width:15px;height:15px;vertical-align:-3px;margin-right:3px;object-fit:contain}
 #ticker .empty{font-size:11.5px;font-weight:700;opacity:.85}
 @keyframes pop{from{transform:translateX(-20px);opacity:0}}
+#goal{display:flex;align-items:center;gap:6px;background:linear-gradient(90deg,#123a12f0,#0a140af0);border:1px solid #7cf25a66;border-radius:9px;padding:3px 7px;white-space:nowrap}
+#goal b{font:400 10px Bungee,sans-serif;color:var(--z)}
+#goal .gbar{flex:1;height:9px;border-radius:5px;background:#ffffff1f;overflow:hidden}
+#goal .gbar div{height:100%;width:0;background:linear-gradient(90deg,#7cf25a,#ffd23d);transition:width .3s}
+#goal span{font-size:11px;font-weight:800}
+#goal.hit{animation:gh .8s 3}
 #duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:4px}
 .card{background:linear-gradient(180deg,#141826f2,#0a0c14f2);border:1px solid #ffffff22;border-radius:10px;padding:4px 7px 5px;min-height:74px;overflow:hidden}
 .card h3{margin:0 0 3px;font:400 10px Bungee,sans-serif;color:var(--gold);white-space:nowrap;display:flex;justify-content:space-between;gap:6px}
@@ -140,12 +146,13 @@ select,input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;borde
     <div class="gift big" data-min="1000"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="#2a1460"/><path d="M20 20c0-5 6-6 8-2s-2 10-9 10-11-6-10-12 8-10 14-9" stroke="#b98cff" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M20 20c0 4-5 5-7 2" stroke="#ffd1ff" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="20" cy="20" r="2.6" fill="#fff"/><circle cx="31" cy="9" r="1.3" fill="#fff"/><circle cx="9" cy="29" r="1" fill="#fff"/></svg><b>Galaxy</b><span>AIRSTRIKE</span></div>
     <div class="gift big" data-min="29999"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="#c8741f"><circle cx="32.5" cy="21.0" r="5.5"/><circle cx="30.1" cy="28.3" r="5.5"/><circle cx="23.9" cy="32.9" r="5.5"/><circle cx="16.1" cy="32.9" r="5.5"/><circle cx="9.9" cy="28.3" r="5.5"/><circle cx="7.5" cy="21.0" r="5.5"/><circle cx="9.9" cy="13.7" r="5.5"/><circle cx="16.1" cy="9.1" r="5.5"/><circle cx="23.9" cy="9.1" r="5.5"/><circle cx="30.1" cy="13.7" r="5.5"/></g><circle cx="20" cy="21" r="11" fill="#f2b544"/><circle cx="16" cy="19" r="1.6" fill="#2a1a08"/><circle cx="24" cy="19" r="1.6" fill="#2a1a08"/><path d="M17.5 24h5l-2.5 2.5z" fill="#6b3a12"/><path d="M20 26.5c-1 2-3 2-4 1M20 26.5c1 2 3 2 4 1" stroke="#6b3a12" stroke-width="1.2" fill="none"/></svg><b>Lion</b><span>NUKE</span></div>
     </div>
+    <div id="goal"><b>CHAT GOAL</b><div class="gbar"><div id="goalFill"></div></div><span id="goalTxt">0/20 comments → FREE AIRSTRIKE</span></div>
     <div id="duo">
       <div class="card" id="top"><h3>TOP 3 HEROES</h3><ol id="topl"><li class="empty">Send a gift to take #1</li></ol></div>
       <div class="card" id="chat"><h3>LIVE CHAT <i>comment = fighter</i></h3><ul id="chatl"><li class="empty">Say hi to join the fight!</li></ul></div>
     </div>
     <div id="ticker"><b>GIFTS</b><span class="empty">Send a gift — your @name shows here</span></div>
-    <div id="legend"><b>Comment</b> = 1 fighter · <b>Follow</b> = 3 · <b>Share</b> = wall +10<span id="tapInfo"> · <b>10 taps</b> = 1<span id="tapN" hidden>0</span></span></div>
+    <div id="legend"><b>1st comment</b> = 3 · <b>Comment</b> = 1 · <b>Follow</b> = 3 · <b>Share</b> = wall+10<span id="tapInfo"> · <b>10 taps</b> = 1<span id="tapN" hidden>0</span></span></div>
   </div>
   <div id="drawer" role="dialog" aria-label="Control panel">
     <h2>Control panel <button id="close" style="min-height:36px;padding:0 12px">Hide</button></h2>
@@ -159,6 +166,7 @@ select,input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;borde
       <button class="y" data-g="Galaxy,1000,1">1000 coins</button>
       <button class="p" data-g="Lion,29999,1">Lion (NUKE)</button>
       <button id="tchat">Comment</button>
+      <button id="tjoin">Viewer joins</button>
       <button id="tlike">+100 taps</button>
       <button id="tfollow">Follow</button>
       <button id="tshare">Share</button>
@@ -449,12 +457,25 @@ function onGiftList(list){if(!Array.isArray(list))return;const m={};for(const g 
   document.querySelectorAll('.gift').forEach(el=>{const u=m[norm(el.querySelector('b').textContent)];if(!u)return;const im=new Image();im.alt='';im.src=u;im.onload=()=>{const old=el.querySelector('svg,img');old&&old.replaceWith(im)}})}
 function ticker(who,g,msg){const t=$('ticker');t.querySelector('.empty')?.remove();const d=document.createElement('span');d.className='tk';const im=safeImg(g.img);d.innerHTML=`${im?`<img src="${esc(im)}" alt="">`:''}${esc(who)} <i>${g.repeatCount>1?g.repeatCount+'× ':''}${esc(g.giftName||'gift')}</i>`;t.querySelector('b').after(d);while(t.querySelectorAll('.tk').length>6)t.querySelector('.tk:last-of-type').remove()}
 function onLike(c,who){$('tapInfo').style.display='inline';taps+=c;tapBank+=c;let n=0;while(tapBank>=10){tapBank-=10;n++}if(n&&queue.length<300){enqueue('runner',Math.min(n,30),who);SFX.spawn()}}
-const chatCd=new Map();
-function chatLine(who,text,isNew){const l=$('chatl');l.querySelector('.empty')?.remove();const li=document.createElement('li');if(isNew)li.className='new';const b=document.createElement('b');b.textContent=who;li.append(b,document.createTextNode(text?': '+text:' joined the fight!'));l.prepend(li);while(l.children.length>3)l.lastChild.remove()}
-function onChat(who,text){const fresh=(chatCd.get(who)||-99)<=clock-6;chatLine(who,String(text||'').slice(0,60),fresh);const now=clock;if((chatCd.get(who)||-99)>now-6)return;chatCd.set(who,now);if(chatCd.size>500)chatCd.clear();if(queue.length<300){enqueue('runner',1,who);SFX.spawn();toast(`${esc(who)} <em>joined the fight!</em>`)}}
+const chatCd=new Map(),seenChat=new Set();let goal={n:0,need:20,reward:0};
+const GOAL_REWARDS=[['FREE AIRSTRIKE',()=>airstrike()],['5 FREE TANKS',()=>enqueue('tank',5,'CHAT',999)],['20 FREE RIFLES',()=>enqueue('rifle',20,'CHAT',999)],['WALL FULLY REPAIRED',()=>{base=100}]];
+function goalUI(){const r=GOAL_REWARDS[goal.reward%GOAL_REWARDS.length][0];$('goalFill').style.width=Math.min(100,goal.n/goal.need*100)+'%';$('goalTxt').textContent=goal.n+'/'+goal.need+' comments → '+r}
+function goalAdd(){goal.n++;if(goal.n>=goal.need){const [r,fn]=GOAL_REWARDS[goal.reward%GOAL_REWARDS.length];fn();SFX.level();
+    shout('The chat did it! '+r.toLowerCase()+', from all of you! Next goal is already up, keep typing!',['CHAT GOAL REACHED!',r+' — thank you chat!',2.8]);
+    $('goal').classList.remove('hit');void $('goal').offsetWidth;$('goal').classList.add('hit');goal.reward++;goal.n=0;goal.need=Math.min(60,goal.need+5)}goalUI()}
+let joinQ=[],joinT=0;const greeted=new Set();
+function onJoin(who){if(greeted.has(who))return;greeted.add(who);if(queue.length<300)enqueue('runner',1,who,999);if(greeted.size>3000)greeted.clear();joinQ.push(who);if(joinQ.length>6)joinQ.shift()}
+function greetTick(){if(!joinQ.length||clock-joinT<9)return;joinT=clock;const names=joinQ.splice(0,3);
+  for(const n of names)chatLine(n,'',false,'joined the LIVE');
+  const list=names.length>1?names.slice(0,-1).join(', ')+' and '+names[names.length-1]:names[0];
+  say(pick(['Welcome {U}! Type anything in chat and your soldier joins the fight!','Hey {U}, welcome to the battle! Drop a comment to send your soldier!','{U} just arrived! Say hi in chat, your fighter is waiting!']).replace('{U}',list),2)}
+function chatLine(who,text,isNew,note){const l=$('chatl');l.querySelector('.empty')?.remove();const li=document.createElement('li');if(isNew)li.className='new';const b=document.createElement('b');b.textContent=who;li.append(b,document.createTextNode(text?': '+text:' '+(note||'joined the fight!')));l.prepend(li);while(l.children.length>3)l.lastChild.remove()}
+function onChat(who,text){goalAdd();if(!seenChat.has(who)){seenChat.add(who);if(seenChat.size>5000)seenChat.clear();enqueue('runner',2,who,999);if(clock-(onChat.lastBonus||-99)>5){onChat.lastBonus=clock;say(pick(['First comment bonus for {U}! Two extra soldiers!','Welcome to the fight {U}! Bonus soldiers deployed!']).replace('{U}',who),2)}}const fresh=(chatCd.get(who)||-99)<=clock-6;chatLine(who,String(text||'').slice(0,60),fresh);const now=clock;if((chatCd.get(who)||-99)>now-6)return;chatCd.set(who,now);if(chatCd.size>500)chatCd.clear();if(queue.length<300){enqueue('runner',1,who);SFX.spawn();toast(`${esc(who)} <em>joined the fight!</em>`)}}
 function onFollow(who){enqueue('runner',3,who,999);SFX.level();toast(`${esc(who)} followed → <em>3 fighters</em>`);shout(fill(pick(L.follow),{U:who}),['THANK YOU!',who+' followed — 3 fighters join!',2.4])}
 function onShare(who){base=Math.min(100,base+10);toast(`${esc(who)} shared → <em>wall +10</em>`)}
-function addGifter(w,c){gifters.set(w,(gifters.get(w)||0)+c);levelGifts.set(w,(levelGifts.get(w)||0)+c);
+const topRanks=new Map();
+function addGifter(w,c){gifters.set(w,(gifters.get(w)||0)+c);
+  topRanks.clear();[...gifters].sort((a,b)=>b[1]-a[1]).slice(0,3).forEach(([n],i)=>topRanks.set(n,i+1));levelGifts.set(w,(levelGifts.get(w)||0)+c);
   $('topl').innerHTML=[...gifters].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,v],i)=>`<li><span class="md">${i+1}</span><em>${esc(n)}</em><span>${v}</span></li>`).join('')}
 function airstrike(){SFX.whistle();setTimeout(()=>{for(let i=0;i<12;i++)setTimeout(()=>explode(rnd(50,W-50),rnd(TOPY+20,BASEY-60),80,40+level*6,1),i*90)},700);banner('AIRSTRIKE!','',1.4)}
 function nuke(){SFX.whistle();setTimeout(()=>{flash=1;shake=20;SFX.boom();for(const z of zombies)if(!z.dead){z.hp-=z.type==='boss'?z.max*.6:1e9;if(z.hp<=0)kill(z)}},800);banner('NUKE!','',1.8)}
@@ -516,6 +537,7 @@ function update(dt){
       radio(fill(pick(L.fallen),{L:level}),{speak:true,urgent:true,prio:4})}
     if(base<35&&!dangerSaid){dangerSaid=true;SFX.alarm();radio(fill(pick(L.danger),{P:Math.round(base)}),{speak:true,urgent:true,prio:4})}
     if(base>55)dangerSaid=false;
+    greetTick();
     if(clock-lastTalk>16&&Math.random()<dt*.15){const r=vsR,pool=r>.65?L.winning:r<.38?L.losing:L.chatter;say(pick(pool),1)}
     if(clock-lastGift>28){lastGift=clock-8;radio(pick(L.idle),{speak:true,prio:1})}
     if(zAlive>0&&Math.random()<dt*.8)SFX.groan();
@@ -625,10 +647,13 @@ function drawZombie(z){
   if(boss&&!z.dead){cx.font='400 15px Bungee,sans-serif';cx.textAlign='center';cx.lineWidth=4;cx.strokeStyle='#000';cx.strokeText(z.name,z.x,z.y-134);cx.fillStyle='#ff5a5a';cx.fillText(z.name,z.x,z.y-134)}
 }
 const labelCache=new Map(),labelSeen=new Set();let crowd=false;
-function labelImg(n,big){const k=(big?'B':'s')+n;let c=labelCache.get(k);if(c)return c;
+const RANKC=[null,['#ffd23d','#3a2600','1'],['#dfe4ec','#1e2430','2'],['#e39a5f','#2e1606','3']];
+function labelImg(n,big,rank=0){const k=(big?'B':'s')+rank+n;let c=labelCache.get(k);if(c)return c;
   const font=big?'800 13px Rubik,sans-serif':'700 10.5px Rubik,sans-serif',sc=2;c=document.createElement('canvas');let x=c.getContext('2d');x.font=font;
-  const w=Math.ceil(x.measureText(n).width)+8,hh=big?20:16;c.width=w*sc;c.height=hh*sc;x=c.getContext('2d');x.scale(sc,sc);x.font=font;x.textAlign='center';x.textBaseline='middle';
-  x.lineWidth=3;x.strokeStyle='#000';x.strokeText(n,w/2,hh/2);x.fillStyle=big?'#ffc83d':'#fff';x.fillText(n,w/2,hh/2);c.lw=w;c.lh=hh;
+  if(rank)n='#'+rank+' '+n;const w=Math.ceil(x.measureText(n).width)+(rank?14:8),hh=big?20:16;c.width=w*sc;c.height=hh*sc;x=c.getContext('2d');x.scale(sc,sc);x.font=font;x.textAlign='center';x.textBaseline='middle';
+  if(rank){const [bg,fg]=RANKC[rank];x.fillStyle='#000a';x.beginPath();x.roundRect(1,1,w-2,hh-2,hh/2);x.fill();x.fillStyle=bg;x.beginPath();x.roundRect(2,2,w-4,hh-4,(hh-4)/2);x.fill();
+    x.fillStyle=fg;x.fillText(n,w/2,hh/2+.5)}
+  else{x.lineWidth=3;x.strokeStyle='#000';x.strokeText(n,w/2,hh/2);x.fillStyle=big?'#ffc83d':'#fff';x.fillText(n,w/2,hh/2)}c.lw=w;c.lh=hh;
   if(labelCache.size>400)labelCache.clear();labelCache.set(k,c);return c}
 function drawHero(h){
   const T=HT[h.kind];
@@ -668,8 +693,8 @@ function drawHero(h){
   if(!h.dead&&(h.hp<h.max||h.kind==='tank'||h.kind==='mech')){const w=h.kind==='mech'||h.kind==='tank'?44:22;cx.fillStyle='#000b';cx.fillRect(h.x-w/2,h.y-top-6,w,4);cx.fillStyle='#3aa0ff';cx.fillRect(h.x-w/2,h.y-top-6,w*Math.max(0,h.hp/h.max),4)}
   if(h.maxLife&&!h.dead){const w=44;cx.fillStyle='#000b';cx.fillRect(h.x-w/2,h.y-top-1,w,3);cx.fillStyle='#ffb23e';cx.fillRect(h.x-w/2,h.y-top-1,w*Math.max(0,h.life/h.maxLife),3)}
   if(h.name&&!h.dead){const big=h.kind==='tank'||h.kind==='mech';
-    if(crowd){const k=(big?'B':'s')+h.name+'|'+(h.x/(big?120:110)|0)+'|'+(h.y/(big?70:60)|0);if(labelSeen.has(k))return;labelSeen.add(k)}
-    const im=labelImg(h.name.slice(0,16),big);cx.drawImage(im,h.x-im.lw/2,h.y-top-14-im.lh/2,im.lw,im.lh)}
+    if(crowd){const k=(big?'B':'s')+(topRanks.get(h.name)?'R':'')+h.name+'|'+(h.x/(big?120:110)|0)+'|'+(h.y/(big?70:60)|0);if(labelSeen.has(k))return;labelSeen.add(k)}
+    const rk=topRanks.get(h.name)||0;const im=labelImg(h.name.slice(0,16),big,rk);cx.drawImage(im,h.x-im.lw/2,h.y-top-14-im.lh/2,im.lw,im.lh)}
 }
 let lights=[];
 function drawWeather(dt){const S=SCENES[scene];for(const p of weather){if(S.wx==='snow'){p.y+=(30+p.s*50)*dt;p.x+=Math.sin(clock+p.s*9)*12*dt;cx.fillStyle='#ffffffcc';circ(p.x,p.y,1.2+p.s*1.8)}else if(S.wx==='dust'){p.x+=(60+p.s*90)*dt;p.y+=Math.sin(clock*2+p.s*9)*8*dt;cx.fillStyle='#ffcf8a55';circ(p.x,p.y,1+p.s*2.4)}else{p.y+=(14+p.s*20)*dt;p.x+=Math.sin(clock+p.s*9)*8*dt;cx.fillStyle='#b0a8a088';circ(p.x,p.y,1+p.s*1.4)}if(p.y>H)p.y=TOPY-20;if(p.x>W)p.x=0;if(p.x<0)p.x=W}}
@@ -702,7 +727,7 @@ function draw(){
   let zc=zLeft,hc=queue.length;for(const z of zombies)if(!z.dead)zc++;for(const h of humans)if(!h.dead)hc++;
   $('zc').textContent=zc;$('hc').textContent=hc;$('kc').textContent=kills;$('sh').textContent=won;$('sz').textContent=lost;
   {const m=zStatsMult();let zp=zLeft;for(const z of zombies)if(!z.dead)zp+=z.hp/(5*m.hp)*(z.type==='boss'?.6:1);const hp=power()+queue.length;const r=hp+zp>0?hp/(hp+zp*.8):.5;vsR+=(r-vsR)*.04;
-   $('vsH').style.width=(vsR*100).toFixed(1)+'%';$('vsMsg').textContent=vsR<.4?'ZOMBIES WINNING — SEND GIFTS':vsR>.62?'HUMANS WINNING':'EVEN FIGHT'}
+   $('vsH').style.width=(vsR*100).toFixed(1)+'%';$('vsMsg').textContent=vsR<.4?'ZOMBIES WINNING — TYPE IN CHAT!':vsR>.62?'HUMANS WINNING':'EVEN FIGHT'}
   $('tapN').textContent=taps;
   const b=Math.max(0,Math.round(base));$('hp').style.width=b+'%';$('hpn').textContent=b;$('hpBar').classList.toggle('crit',b<35);
   const m=hypeMult();$('hypeRow').style.display=hype>0.5?'inline-flex':'none';$('hypeTxt').textContent='HYPE x'+m;$('hype').style.width=Math.max(0,hypeT/10*100)+'%';
@@ -725,6 +750,7 @@ const drawer=$('drawer');
 $('gear').onclick=()=>drawer.classList.add('open');
 $('close').onclick=()=>drawer.classList.remove('open');
 drawer.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{const[n,c,r]=b.dataset.g.split(',');onGift({user:pick(['rojan_np','zombie_slayer7','kathmandu.king','maya_22']),nickname:'Tester',giftName:n,diamondCount:+c,repeatCount:+r})});
+$('tjoin').onclick=()=>onJoin(pick(['@sita_k','@bikash99','@nepali_gamer','@anu.rai']));
 $('tchat').onclick=()=>onChat(pick(['@rojan_np','@maya_22','@zombie_slayer7']),pick(['lets goooo','kill them all!','tank pls','hi from Kathmandu','this is fire 🔥']));
 $('tlike').onclick=()=>onLike(100,'Tester');
 $('tfollow').onclick=()=>onFollow(pick(['@rojan_np','@maya_22','@kathmandu.king']));
@@ -762,6 +788,7 @@ function openWS(){
     else if(o.type==='giftlist')onGiftList(o.gifts);
     else if(o.type==='like')onLike(+o.likeCount||1,idOf(o));
     else if(o.type==='chat')onChat(idOf(o),o.comment);
+    else if(o.type==='join')onJoin(idOf(o));
     else if(o.type==='follow')onFollow(idOf(o));
     else if(o.type==='share')onShare(idOf(o));
     else if(o.type==='status')setStatus(String(o.msg||''),!!o.ok)};
@@ -787,7 +814,7 @@ function layout(){
 }
 const layoutObs=new ResizeObserver(()=>layout());layoutObs.observe($('cab'));layoutObs.observe($('hud'));layoutObs.observe($('bottom'));
 try{document.fonts&&document.fonts.ready.then(layout)}catch(e){}
-layout();openWS();checkTTS();requestAnimationFrame(loop);
+goalUI();layout();openWS();checkTTS();requestAnimationFrame(loop);
 }
 </script>
 </body>
