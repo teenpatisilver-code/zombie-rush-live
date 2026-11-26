@@ -187,7 +187,8 @@ select,input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;borde
 const cv=document.getElementById('c'),cx=cv.getContext('2d');
 let W=540,H=960,TOPY=235,BASEY=H-210;
 let scale=1;
-function fit(){const r=cv.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,3);cv.width=Math.max(1,r.width*d);cv.height=Math.max(1,r.height*d);scale=cv.width/W}
+let Q={dpr:Math.min(devicePixelRatio||1,2),heroes:150,zombies:150,fx:300};
+function fit(){const r=cv.getBoundingClientRect(),d=Q.dpr;cv.width=Math.max(1,r.width*d);cv.height=Math.max(1,r.height*d);scale=cv.width/W}
 
 const $=id=>document.getElementById(id);
 const rnd=(a,b)=>a+Math.random()*(b-a);
@@ -481,11 +482,11 @@ function update(dt){
   if(hypeT>0)hypeT-=dt;else hype=Math.max(0,hype-dt*1.5);
   if(phase==='idle')return;
   let alive=0;for(const h of humans)if(!h.dead)alive++;
-  for(let i=0;i<5&&queue.length&&alive<230;i++,alive++){const q=queue.shift();spawnHuman(q.kind,q.name)}
+  for(let i=0;i<5&&queue.length&&alive<Q.heroes;i++,alive++){const q=queue.shift();spawnHuman(q.kind,q.name)}
   const zAlive=zombies.filter(z=>!z.dead).length;
   if(phase==='play'){
     zTimer-=dt;
-    if(zLeft>0&&zTimer<=0&&zAlive<220){
+    if(zLeft>0&&zTimer<=0&&zAlive<Q.zombies){
       const g=Math.min(zLeft,55,6+Math.floor(level*1.5)+tier()*4+Math.floor(power()/8));
       const boss=level%5===0&&zLeft<=g&&!bossOut;
       for(let i=0;i<g;i++)spawnZombie(boss&&i===0);
@@ -558,7 +559,7 @@ function update(dt){
   humans=humans.filter(h=>!h.dead||h.dt<1.6);
   zombies=zombies.filter(z=>!z.dead||z.dt<1.6);
   for(const f of fx){f.t+=dt;if(f.vx!==undefined){f.x+=f.vx*dt;f.y+=f.vy*dt}}
-  fx=fx.filter(f=>f.t<f.life);if(fx.length>700)fx.splice(0,fx.length-700);
+  fx=fx.filter(f=>f.t<f.life);if(fx.length>Q.fx)fx.splice(0,fx.length-Q.fx);
   tracers=tracers.filter(s=>(s.t+=dt)<.07);
 }
 
@@ -608,6 +609,12 @@ function drawZombie(z){
   if(!z.dead&&(z.hp<z.max||boss)){const w=boss?90:22,y=z.y-(boss?126:46*s);cx.fillStyle='#000b';cx.fillRect(z.x-w/2,y,w,boss?7:4);cx.fillStyle=boss?'#ff3b3b':'#7cf25a';cx.fillRect(z.x-w/2,y,w*Math.max(0,z.hp/z.max),boss?7:4)}
   if(boss&&!z.dead){cx.font='400 15px Bungee,sans-serif';cx.textAlign='center';cx.lineWidth=4;cx.strokeStyle='#000';cx.strokeText(z.name,z.x,z.y-134);cx.fillStyle='#ff5a5a';cx.fillText(z.name,z.x,z.y-134)}
 }
+const labelCache=new Map(),labelSeen=new Set();let crowd=false;
+function labelImg(n,big){const k=(big?'B':'s')+n;let c=labelCache.get(k);if(c)return c;
+  const font=big?'800 13px Rubik,sans-serif':'700 10.5px Rubik,sans-serif',sc=2;c=document.createElement('canvas');let x=c.getContext('2d');x.font=font;
+  const w=Math.ceil(x.measureText(n).width)+8,hh=big?20:16;c.width=w*sc;c.height=hh*sc;x=c.getContext('2d');x.scale(sc,sc);x.font=font;x.textAlign='center';x.textBaseline='middle';
+  x.lineWidth=3;x.strokeStyle='#000';x.strokeText(n,w/2,hh/2);x.fillStyle=big?'#ffc83d':'#fff';x.fillText(n,w/2,hh/2);c.lw=w;c.lh=hh;
+  if(labelCache.size>400)labelCache.clear();labelCache.set(k,c);return c}
 function drawHero(h){
   const T=HT[h.kind];
   cx.save();cx.translate(h.x,h.y);
@@ -645,7 +652,9 @@ function drawHero(h){
   const top=h.kind==='tank'?58:h.kind==='mech'?72:44;
   if(!h.dead&&(h.hp<h.max||h.kind==='tank'||h.kind==='mech')){const w=h.kind==='mech'||h.kind==='tank'?44:22;cx.fillStyle='#000b';cx.fillRect(h.x-w/2,h.y-top-6,w,4);cx.fillStyle='#3aa0ff';cx.fillRect(h.x-w/2,h.y-top-6,w*Math.max(0,h.hp/h.max),4)}
   if(h.maxLife&&!h.dead){const w=44;cx.fillStyle='#000b';cx.fillRect(h.x-w/2,h.y-top-1,w,3);cx.fillStyle='#ffb23e';cx.fillRect(h.x-w/2,h.y-top-1,w*Math.max(0,h.life/h.maxLife),3)}
-  if(h.name&&!h.dead){const big=h.kind==='tank'||h.kind==='mech';cx.font=big?'800 13px Rubik,sans-serif':'700 10.5px Rubik,sans-serif';cx.textAlign='center';cx.lineWidth=3;cx.strokeStyle='#000';const n=h.name.slice(0,16);cx.strokeText(n,h.x,h.y-top-10);cx.fillStyle=h.kind==='tank'||h.kind==='mech'?'#ffc83d':'#fff';cx.fillText(n,h.x,h.y-top-10)}
+  if(h.name&&!h.dead){const big=h.kind==='tank'||h.kind==='mech';
+    if(crowd){const k=(big?'B':'s')+h.name+'|'+(h.x/(big?120:110)|0)+'|'+(h.y/(big?70:60)|0);if(labelSeen.has(k))return;labelSeen.add(k)}
+    const im=labelImg(h.name.slice(0,16),big);cx.drawImage(im,h.x-im.lw/2,h.y-top-14-im.lh/2,im.lw,im.lh)}
 }
 let lights=[];
 function drawWeather(dt){const S=SCENES[scene];for(const p of weather){if(S.wx==='snow'){p.y+=(30+p.s*50)*dt;p.x+=Math.sin(clock+p.s*9)*12*dt;cx.fillStyle='#ffffffcc';circ(p.x,p.y,1.2+p.s*1.8)}else if(S.wx==='dust'){p.x+=(60+p.s*90)*dt;p.y+=Math.sin(clock*2+p.s*9)*8*dt;cx.fillStyle='#ffcf8a55';circ(p.x,p.y,1+p.s*2.4)}else{p.y+=(14+p.s*20)*dt;p.x+=Math.sin(clock+p.s*9)*8*dt;cx.fillStyle='#b0a8a088';circ(p.x,p.y,1+p.s*1.4)}if(p.y>H)p.y=TOPY-20;if(p.x>W)p.x=0;if(p.x<0)p.x=W}}
@@ -659,6 +668,7 @@ function draw(){
   const hpc=base>50?'#b89558':base>25?'#b8703c':'#b8443c';
   for(let row=0;row<2;row++)for(let i=0;i<13;i++){if(row===0&&base<(i*37%100)*.6)continue;const x=row*20-10+i*44,y=BASEY+6-row*14;cx.fillStyle='#0007';cx.beginPath();cx.ellipse(x+22,y+26,22,6,0,0,7);cx.fill();cx.fillStyle=hpc;rr(x,y+4,42,22,9);cx.fillStyle='#ffffff22';rr(x+4,y+6,34,6,3)}
   const list=[];for(const h of humans)list.push(h);for(const z of zombies)list.push(z);list.sort((a,b)=>a.y-b.y);
+  labelSeen.clear();crowd=humans.length>60;
   for(const e of list)(e.kind?drawHero:drawZombie)(e);
   cx.strokeStyle='#ffe58a';cx.lineWidth=1.6;cx.beginPath();for(const s of tracers){cx.moveTo(s.x,s.y);cx.lineTo(s.tx,s.ty)}cx.stroke();
   for(const s of shells){cx.fillStyle=s.big?'#2a2a2a':'#4a4a6a';circ(s.x,s.y,s.big?5:3.5);cx.fillStyle='#ffb23e88';circ(s.x,s.y+3,2)}
@@ -683,7 +693,17 @@ function draw(){
   const m=hypeMult();$('hypeRow').style.display=hype>0.5?'inline-flex':'none';$('hypeTxt').textContent='HYPE x'+m;$('hype').style.width=Math.max(0,hypeT/10*100)+'%';
 }
 let last=performance.now();
-function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}
+let perfAcc=0,perfN=0,perfT=0;
+function loop(now){requestAnimationFrame(loop);
+  if(now-last<31)return;               // 30 fps is plenty for TikTok and halves the work
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  const t0=performance.now();update(dt);draw();const cost=performance.now()-t0;
+  perfAcc+=cost;perfN++;perfT+=dt;
+  if(perfT>2){const avg=perfAcc/perfN;perfAcc=perfN=perfT=0;
+    if(avg>18&&Q.dpr>1){Q.dpr=Math.max(1,Q.dpr-.25);Q.heroes=Math.max(90,Q.heroes-15);Q.zombies=Math.max(90,Q.zombies-15);Q.fx=Math.max(150,Q.fx-50);fit()}
+    else if(avg>18){Q.heroes=Math.max(70,Q.heroes-10);Q.zombies=Math.max(70,Q.zombies-10)}
+    else if(avg<8&&Q.dpr<Math.min(devicePixelRatio||1,2)){Q.dpr=Math.min(Math.min(devicePixelRatio||1,2),Q.dpr+.25);fit()}}
+}
 
 // ================= CONTROLS =================
 const drawer=$('drawer');
