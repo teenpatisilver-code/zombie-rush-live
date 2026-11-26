@@ -18,6 +18,7 @@ const findFile = name => { const p = path.join(__dirname, 'public', name); retur
 app.get(['/', '/games', '/games.html'], (req, res) => res.sendFile(findFile('games.html')));
 app.get(['/zombie', '/index.html'], (req, res) => res.sendFile(gamePage()));
 app.get(['/race', '/race.html'], (req, res) => res.redirect('/'));
+app.get(['/plinko', '/plinko.html'], (req, res) => res.sendFile(findFile('plinko.html')));
 app.get('/healthz', (req, res) => res.send('ok'));
 
 // ---------- Natural commander voice (Google Cloud Text-to-Speech) ----------
@@ -104,7 +105,12 @@ function status(ok, msg) {
   console.log(msg);
   broadcast(lastStatus);
 }
-const who = d => ({ user: d.user?.uniqueId || d.uniqueId || '', nickname: d.user?.nickname || d.nickname || d.user?.uniqueId || 'Viewer' });
+const pic = d => {
+  const u = d.user || d, pp = u.profilePicture || u.avatarThumb || {};
+  const v = (Array.isArray(pp.url) && pp.url[0]) || (Array.isArray(pp.urls) && pp.urls[0]) || (Array.isArray(pp.urlList) && pp.urlList[0]) || (Array.isArray(pp.url_list) && pp.url_list[0]) || (typeof pp.url === 'string' && pp.url) || u.profilePictureUrl || d.profilePictureUrl || '';
+  return /^https:\/\//.test(v) ? v : '';
+};
+const who = d => ({ user: d.user?.uniqueId || d.uniqueId || '', nickname: d.user?.nickname || d.nickname || d.user?.uniqueId || 'Viewer', avatar: pic(d) });
 
 async function connectTikTok(username) {
   username = String(username || '').replace(/^@/, '').trim();
