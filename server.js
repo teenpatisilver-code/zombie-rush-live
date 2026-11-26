@@ -158,7 +158,7 @@ async function connectTikTok(username) {
   conn.on(ev.follow, d => broadcast({ type: 'follow', ...who(d) }));
   conn.on(ev.share, d => broadcast({ type: 'share', ...who(d) }));
   conn.on(WE.MEMBER || 'member', d => broadcast({ type: 'join', ...who(d) }));
-  conn.on(ev.chat, d => broadcast({ type: 'chat', ...who(d), comment: String(d.comment || '').slice(0, 80) }));
+  conn.on(ev.chat, d => broadcast({ type: 'chat', ...who(d), comment: String(d.comment || d.content || d.text || d.message || '').slice(0, 80) }));
   // Diagnostics: count every message type TikTok sends (shows if likes arrive at all)
   const seen = {};
   conn.on(CE.RAW_DATA || 'rawData', (type) => { seen[type] = (seen[type] || 0) + 1; });
