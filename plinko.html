@@ -20,7 +20,7 @@ LAYOUT: title strip, mascots/scores, board fills the middle, TYPE GIRLS / TYPE B
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%;margin:0}
 body{background:#0a0620;color:var(--ink);font:15px/1.3 Rubik,system-ui,sans-serif;overflow:hidden}
-#app{position:fixed;inset:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:3px;padding:env(safe-area-inset-top) 6px max(6px,env(safe-area-inset-bottom));isolation:isolate}
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:3px;padding:env(safe-area-inset-top) 6px max(6px,env(safe-area-inset-bottom));isolation:isolate}
 #bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(90deg,#c0106e 0%,#ff2fa0 22%,#7a2cff 50%,#1f8bff 78%,#0b3fb8 100%)}
 #bg::before{content:"";position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 30%,#ffffff1c 0 6deg,#0000 6deg 18deg);mix-blend-mode:screen;animation:spin 40s linear infinite}
 #bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,#0000 0,#0a062099 70%)}
@@ -171,6 +171,15 @@ input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;border:1px s
 .join b,.join{color:#fff}.join .w{display:block;color:#fff;font:400 clamp(20px,6.5vw,28px)/1 Bungee,sans-serif;text-shadow:0 3px 0 #0009;opacity:1}
 .join.g{box-shadow:0 4px 0 #0008,0 0 16px #ff2fa0}.join.b{box-shadow:0 4px 0 #0008,0 0 16px #1f8bff}
 @keyframes jp{to{transform:scale(1.08) rotate(-2deg)}}
+#taps{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 2px}
+.tbar{position:relative;height:20px;border-radius:99px;background:#0a0620d9;border:2px solid;overflow:hidden}
+.tbar.g{border-color:#ff8ad6}.tbar.b{border-color:#8fc8ff}
+.tbar i{position:absolute;left:0;top:0;bottom:0;width:0;transition:width .3s ease-out}
+.tbar.g i{background:linear-gradient(90deg,#c0106e,#ff2fa0,#ff8ad6)}.tbar.b i{background:linear-gradient(90deg,#0b3fb8,#1f8bff,#8fc8ff)}
+.tbar span{position:relative;z-index:1;display:flex;justify-content:center;align-items:center;gap:4px;height:100%;font:900 10.5px Rubik,sans-serif;text-shadow:0 1px 2px #000}
+.tbar b{color:#ffd23d}
+.tbar.full{animation:tfull .6s}
+@keyframes tfull{40%{transform:scale(1.08);box-shadow:0 0 18px #ffd23d}}
 @media (prefers-reduced-motion:reduce){#bg::before,.mascot,.side.lead .sbox,#spark,.join,#meter .mf::after{animation:none}}
 </style>
 </head>
@@ -190,6 +199,7 @@ input{font:16px Rubik,sans-serif;min-height:44px;border-radius:10px;border:1px s
     <div class="clock" id="mid"><span id="rnd">ROUND 1</span><b id="tmr">3:00</b></div>
   </div>
   <div id="meter" role="img" aria-label="Who is winning"><div class="mf g" id="mg" style="width:50%"></div><div class="mf b" id="mb"></div><div class="ml l"><b>GIRLS</b><span id="mgs">0</span><em id="mgp">50%</em></div><div class="ml r"><em id="mbp">50%</em><span id="mbs">0</span><b>BOYS</b></div><i id="spark">⚡</i></div>
+  <div id="taps"><div class="tbar g"><i id="tfG"></i><span>👆 GIRLS TAP <b id="ttG">0/30</b></span></div><div class="tbar b"><i id="tfB"></i><span>👆 BOYS TAP <b id="ttB">0/30</b></span></div></div>
   <div id="board"><canvas id="c" aria-label="Plinko board"></canvas>
     <div class="mvpc g empty" id="mvpG"><div class="mt">GIRLS MVP</div><div class="ma" id="mvpGa">?</div><em id="mvpGn">Be the MVP!</em><span id="mvpGp">0</span></div>
     <div class="mvpc b empty" id="mvpB"><div class="mt">BOYS MVP</div><div class="ma" id="mvpBa">?</div><em id="mvpBn">Be the MVP!</em><span id="mvpBp">0</span></div><div id="mvpLine" hidden></div></div>
@@ -381,7 +391,7 @@ function mvpCard(tm){const k=tm==='g'?'G':'B',top=teamTop(tm),card=$('mvp'+k),av
     if(was&&phase==='play'&&clock-mvpTalk[tm]>12){mvpTalk[tm]=clock;say(pick(['{U} steals the {T} MVP crown!','New {T} MVP: {U}!','{U} is now the {T} MVP! Can anyone beat that?']).replace('{U}',n).replace('{T}',TEAM[tm].name==='Girls'?'Girls':'Boys'),2)}}}
 function mvpUI(){$('lbG').innerHTML=lbHTML('g');$('lbB').innerHTML=lbHTML('b');mvpCard('g');mvpCard('b')}
 function modeUI(){$('tmode').textContent='Teams: '+(mode==='type'?'type':'by action');$('tlen').textContent='Round: '+(roundLen/60)+' min';$('tv').textContent='Voice: '+(voiceOn?'on':'off');
-  if(mode==='type'){$('hG').textContent='COMMENT "GIRL"';$('hB').textContent='COMMENT "BOY"';document.querySelectorAll('.join').forEach(e=>e.hidden=false);$('modeNote').textContent='Type mode: viewers type girls or boys once, then every comment, tap and gift counts for their team.'}
+  if(mode==='type'){$('hG').textContent='COMMENT "GIRL"';$('hB').textContent='COMMENT "BOY"';document.querySelectorAll('.join').forEach(e=>e.hidden=false);$('modeNote').textContent='Type mode: viewers comment girl or boy once, then every comment, tap and gift counts for their team.'}
   else{$('hG').textContent='COMMENT = GIRLS';$('hB').textContent='TAP = BOYS';document.querySelectorAll('.join').forEach(e=>e.hidden=true);$('modeNote').textContent='Action mode: comments and Roses push Girls, taps and Finger Hearts push Boys. Other gifts go to the team the viewer typed (or the losing team).'}}
 const idOf=o=>{const u=String(o.user||'').replace(/^@/,'').trim();return(u?'@'+u:String(o.nickname||'Viewer')).slice(0,22)};
 const evc={gift:0,chat:0,like:0,join:0};const evcUI=()=>{$('evt').textContent=`From TikTok: ${evc.gift} gifts · ${evc.chat} comments · ${evc.like} taps · ${evc.join} joins`};
@@ -391,15 +401,27 @@ function parseTeam(t){t=' '+String(t||'').toLowerCase().replace(/[^a-z0-9 ]+/g,'
   if(/ (girls?|g|gurl|ladies|queens?|1) /.test(t))return'g';if(/ (boys?|b|guys|kings?|2) /.test(t))return'b';return null}
 const losing=()=>score.g<=score.b?'g':'b';
 function setTeam(who,tm,silent){const old=teamOf.get(who);if(old===tm)return false;teamOf.set(who,tm);if(teamOf.size>5000)teamOf.clear();
-  chat(who,'',tm,'joined team '+TEAM[tm].name+'!');if(!silent)say(pick(['{U} joins the {T}!','Welcome to team {T}, {U}!','{U} is playing for the {T}!']).replace('{U}',who).replace('{T}',TEAM[tm].name),1);return true}
-const cd=new Map();
+  chat(who,'',tm,'joined team '+TEAM[tm].name+'!');
+  if(!silent){const T=TEAM[tm].name,line=pick(['Welcome to team {T}, {U}! Drop those balls and win it for the {T}!','{U} joins the {T}! Come on {U}, take the MVP crown!','Yes! {U} is playing for the {T}! Keep commenting to drop more balls!','{U} picked the {T}! Let\'s go {U}, beat the other team!']).replace(/\{U\}/g,who).replace(/\{T\}/g,T);
+    if(vq.shout.length<4)shout(line,[who,'joined TEAM '+T.toUpperCase()+'!',1.6]);else say(line,2)}return true}
+const cd=new Map(),enc=new Map();
 function onChat(who,text){evc.chat++;evcUI();
   if(mode==='action'){dropBall('g',who);chat(who,String(text||'').slice(0,50),'g');return}
-  const tm=parseTeam(text);if(tm){const nw=setTeam(who,tm);dropBall(tm,who);if(nw){dropBall(tm,who);dropBall(tm,who)}return}
+  const tm=parseTeam(text);if(tm){const nw=setTeam(who,tm);chat(who,String(text||'').slice(0,50),tm);dropBall(tm,who);if(nw){setTimeout(()=>dropBall(tm,who),150);setTimeout(()=>dropBall(tm,who),300)}
+    else if(clock-(enc.get(who)||-99)>25){enc.set(who,clock);say(pick(['Go {U}! Keep dropping for the {T}!','{U} wants that win for the {T}!','Nice {U}! The {T} need more balls!']).replace(/\{U\}/g,who).replace(/\{T\}/g,TEAM[tm].name),2)}return}
   const t=teamOf.get(who);if(t){if((cd.get(who)||-9)<clock-1){cd.set(who,clock);dropBall(t,who)}chat(who,String(text||'').slice(0,50),t)}
   else{chat(who,String(text||'').slice(0,50));if(clock-(onChat.last||-99)>10){onChat.last=clock;say(`${who}, comment girl or boy to pick your team!`,2)}}}
 let likeBank=new Map();
-function onLike(c,who){evc.like+=c;evcUI();const tm=mode==='action'?'b':teamOf.get(who);if(!tm)return;const n=(likeBank.get(who)||0)+c;const k=Math.floor(n/10);likeBank.set(who,n-k*10);for(let i=0;i<Math.min(k,10);i++)dropBall(tm,who)}
+const TAPGOAL=30,tapFill={g:0,b:0},tappers={g:[],b:[]};
+function tapUI(){for(const tm of['g','b']){const K=tm==='g'?'G':'B';$('tf'+K).style.width=Math.min(100,tapFill[tm]/TAPGOAL*100)+'%';$('tt'+K).textContent=Math.floor(tapFill[tm])+'/'+TAPGOAL}}
+function onLike(c,who){evc.like+=c;evcUI();c=Math.max(1,Math.min(200,c|0));const tm=mode==='action'?'b':(teamOf.get(who)||losing());
+  const n=(likeBank.get(who)||0)+c;const k=Math.floor(n/10);likeBank.set(who,n-k*10);for(let i=0;i<Math.min(k,10);i++)dropBall(tm,who);
+  const tp=tappers[tm];if(tp[tp.length-1]!==who){tp.push(who);if(tp.length>12)tp.shift()}
+  tapFill[tm]+=c;let bonus=0;while(tapFill[tm]>=TAPGOAL&&bonus<5){tapFill[tm]-=TAPGOAL;bonus++}
+  if(bonus){const T=TEAM[tm].name;for(let i=0;i<bonus*5;i++)setTimeout(()=>dropBall(tm,pick(tp)),i*110);
+    const el=document.querySelector('.tbar.'+tm);el.classList.remove('full');void el.offsetWidth;el.classList.add('full');beep(660,.1);setTimeout(()=>beep(990,.15),120);
+    if(clock-(onLike.talk||-99)>6){onLike.talk=clock;say(pick(['Tap power! Five balls for the {T}!','The {T} filled the tap bar! Keep tapping!','Tap tap tap! {T} tap bonus!']).replace('{T}',T),2)}}
+  tapUI()}
 function giftPlan(c){return c>=5000?[60,10]:c>=1000?[35,3]:c>=500?[25,3]:c>=100?[15,2]:c>=30?[8,2]:c>=5?[3,2]:[1,2]}
 function onGift(g){evc.gift++;evcUI();const coins=Math.max(1,(g.diamondCount||1)*(g.repeatCount||1)),who=idOf(g);const name=String(g.giftName||'gift');
   let tm=teamOf.get(who);if(mode==='action'){if(/rose|rosa/i.test(name))tm='g';else if(/finger heart/i.test(name))tm='b'}if(!tm)tm=losing();
@@ -415,7 +437,7 @@ let joinQ=[],joinT=-99;const joined=new Set();
 function onJoinLive(who){evc.join++;evcUI();if(joined.has(who))return;joined.add(who);joinQ.push(who);if(joinQ.length>5)joinQ.shift()}
 
 // ---------- rounds ----------
-function startRound(){phase='play';score={g:0,b:0};contrib.clear();mvpNow.g=mvpNow.b=null;mvpUI();timeLeft=roundLen;saidHurry=false;leader=null;$('rnd').textContent='ROUND '+round;
+function startRound(){tapFill.g=tapFill.b=0;tapUI();phase='play';score={g:0,b:0};contrib.clear();mvpNow.g=mvpNow.b=null;mvpUI();timeLeft=roundLen;saidHurry=false;leader=null;$('rnd').textContent='ROUND '+round;
   say(pick([`Round ${round}! Girls versus boys! Type your team and start dropping balls!`,`Round ${round} starts now! Who wins this one, girls or boys?`]),2);beep(523,.15);setTimeout(()=>beep(784,.2),200)}
 function endRound(){if(phase!=='play')return;phase='break';const w=score.g===score.b?null:(score.g>score.b?'g':'b');
   if(w){wins[w]++;store.set('pk-wg',wins.g);store.set('pk-wb',wins.b);confetti(TEAM[w].col)}
@@ -444,7 +466,7 @@ function tick(now){requestAnimationFrame(tick);if(now-last<31)return;const dt=Ma
   let gc=0,bc=0;for(const v of teamOf.values())v==='g'?gc++:bc++;$('nG').textContent=gc+' players';$('nB').textContent=bc+' players';
   if(phase==='play'&&tot>300){const l=score.g>score.b?'g':'b';if(l!==leader&&Math.abs(score.g-score.b)>50){leader=l;if(clock-lastLeadTalk>8){lastLeadTalk=clock;say(pick(['The {T} take the lead!','{T} are in front now!','Look at the {T} go!']).replace('{T}',TEAM[l].name),2)}}}
   if(joinQ.length&&clock-joinT>8){joinT=clock;const n=joinQ.splice(0,3);n.forEach(w=>chat(w,'',null,'joined the LIVE'));say(`Welcome ${n.join(', ')}! Comment girl or boy to join a team!`,2)}
-  if(phase==='play'&&clock-(tick.idle||0)>35){tick.idle=clock;say(pick(['Comment girl or boy to join a team!','Boys, comment boy! Girls, comment girl!','Every comment drops a ball. Who wants it more?','Gifts drop golden balls worth double!','The edges are worth a hundred points. Good luck!','Top player on each team wins the MVP crown!','Who will be the MVP this round? Send a gift to take the crown!']),1)}
+  if(phase==='play'&&clock-(tick.idle||0)>35){tick.idle=clock;say(pick(['Comment girl or boy to join a team!','Boys, comment boy! Girls, comment girl!','Tap tap the screen! Fill your team tap bar for five free balls!','Every comment drops a ball. Who wants it more?','Gifts drop golden balls worth double!','The edges are worth a hundred points. Good luck!','Top player on each team wins the MVP crown!','Who will be the MVP this round? Send a gift to take the crown!']),1)}
   if(Math.floor(clock*2)!==Math.floor((clock-dt)*2))mvpUI()}
 
 // ---------- controls ----------
